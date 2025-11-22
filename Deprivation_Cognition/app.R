@@ -177,6 +177,17 @@ ui <- fluidPage(theme = my_theme,
 
 server <- function(input, output, session) {
   
+observeEvent(input$resetBtn, {
+    updateSliderInput(session, "sleepRange",
+                      value = c(min(sleep_df$Sleep_Hours, na.rm=TRUE),
+                                max(sleep_df$Sleep_Hours, na.rm=TRUE)))
+    updateSliderInput(session, "ageRange",
+                      value = c(min(sleep_df$Age, na.rm=TRUE),
+                                max(sleep_df$Age, na.rm=TRUE)))
+    updateCheckboxGroupInput(session, "genderFilter",
+                             selected = levels(sleep_df$Gender))
+  })
+  
 filtered_data <- reactive({
     sleep_df %>%
       filter(
@@ -193,6 +204,8 @@ output$dataTable <- renderDT({
 output$summaryOutput <- renderPrint({
   summary(filtered_data())
 })
+
+gender_cols <- c("Female" = "#E07A9B", "Male" = "#4C9FCD")
 output$histPlot <- renderPlot({
   df <- filtered_data()
   req(nrow(df) > 0)
@@ -265,7 +278,15 @@ rhs <- c("Sleep_Hours", input$covariates)
   print(formula(model))
   cat("\n\nModel Summary:\n")
   summary(model)
-})
+  
+  output$downloadData <- downloadHandler(
+    filename = function() "filtered_sleep_data.csv",
+    content = function(file) {
+      write.csv(filtered_data(), file, row.names = FALSE)
+    }
+  )
+}
+)
 }
 
 # Run the application
