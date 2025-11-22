@@ -179,13 +179,13 @@ server <- function(input, output, session) {
   
 observeEvent(input$resetBtn, {
     updateSliderInput(session, "sleepRange",
-                      value = c(min(sleep_df$Sleep_Hours, na.rm=TRUE),
-                                max(sleep_df$Sleep_Hours, na.rm=TRUE)))
+    value = c(min(sleep_df$Sleep_Hours, na.rm=TRUE),
+    max(sleep_df$Sleep_Hours, na.rm=TRUE)))
     updateSliderInput(session, "ageRange",
-                      value = c(min(sleep_df$Age, na.rm=TRUE),
-                                max(sleep_df$Age, na.rm=TRUE)))
+    value = c(min(sleep_df$Age, na.rm=TRUE),
+    max(sleep_df$Age, na.rm=TRUE)))
     updateCheckboxGroupInput(session, "genderFilter",
-                             selected = levels(sleep_df$Gender))
+    selected = levels(sleep_df$Gender))
   })
   
 filtered_data <- reactive({
@@ -198,19 +198,20 @@ filtered_data <- reactive({
         Gender %in% input$genderFilter
       )
   })
+output$nText <- renderText({
+  paste0("Filtered sample size: n = ", nrow(filtered_data()))
+})
 output$dataTable <- renderDT({
   filtered_data()
 }, options = list(pageLength = 8, scrollX = TRUE))
 output$summaryOutput <- renderPrint({
   summary(filtered_data())
 })
-
 gender_cols <- c("Female" = "#E07A9B", "Male" = "#4C9FCD")
 output$histPlot <- renderPlot({
   df <- filtered_data()
   req(nrow(df) > 0)
-  
-  ggplot(df, aes_string(x = input$histVar)) +
+ggplot(df, aes_string(x = input$histVar)) +
     geom_histogram(
       bins = 25,
       aes(fill = ..count..),
@@ -232,61 +233,43 @@ output$histPlot <- renderPlot({
       legend.position = "none"
     )})
 output$scatterPlot <- renderPlot({
-  df <- filtered_data()
-  req(nrow(df) > 0)
-ggplot(df, aes_string(x = input$xVar, y = input$yVar, color = "Gender")) +
-    geom_point(size = 2, alpha = 0.8) +
-    geom_smooth(method = "lm", se = FALSE) +
-    labs(
-      title = paste(input$yVar, "vs", input$xVar),
-      x = input$xVar,
-      y = input$yVar
-    ) +
-    theme_minimal()
+  df <- filtered_data(); req(nrow(df) > 0)
+  ggplot(df, aes_string(x=input$xVar, y=input$yVar, color="Gender")) +
+    geom_point(size=2.2, alpha=0.85) +
+    geom_smooth(method="lm", se=FALSE) +
+    scale_color_manual(values = gender_cols) +
+    labs(x=input$xVar, y=input$yVar) +
+    theme_minimal(base_size = 12) +
+    theme(legend.position="right")
 })
 output$caffeinePlot <- renderPlot({
-  df <- filtered_data()
-  req(nrow(df) > 0)
-ggplot(df, aes(x = Caffeine_Intake, y = Sleep_Hours)) +
-    geom_point(alpha = 0.7) +
-    geom_smooth(method = "lm", se = FALSE) +
-    labs(
-      title = "Caffeine Intake vs Sleep Hours",
-      x = "Caffeine Intake",
-      y = "Sleep Hours"
-    ) +
-    theme_minimal()})
+  df <- filtered_data(); req(nrow(df) > 0)
+  ggplot(df, aes(x=Caffeine_Intake, y=Sleep_Hours)) +
+    geom_point(alpha=0.7) +
+    geom_smooth(method="lm", se=FALSE, color="#2C7FB8") +
+    theme_minimal(base_size = 12)
+})
 output$stressPlot <- renderPlot({
-  df <- filtered_data()
-  req(nrow(df) > 0)
-ggplot(df, aes(x = Stress_Level, y = Sleep_Hours)) +
-    geom_point(alpha = 0.7) +
-    geom_smooth(method = "lm", se = FALSE) +
-    labs(
-      title = "Stress Level vs Sleep Hours",
-      x = "Stress Level",
-      y = "Sleep_Hours"
-    ) +
-    theme_minimal()})
+  df <- filtered_data(); req(nrow(df) > 0)
+  ggplot(df, aes(x=Stress_Level, y=Sleep_Hours)) +
+    geom_point(alpha=0.7) +
+    geom_smooth(method="lm", se=FALSE, color="#2C7FB8") +
+    theme_minimal(base_size = 12)
+})
 output$modelOutput <- renderPrint({
-  df <- filtered_data()
-  req(nrow(df) >= 10)
-rhs <- c("Sleep_Hours", input$covariates)
-  formula_str <- paste(input$outcomeVar, "~", paste(rhs, collapse = " + "))
-  model <- lm(as.formula(formula_str), data = df)
+  df <- filtered_data(); req(nrow(df) >= 10)
+  rhs <- c("Sleep_Hours", input$covariates)
+  formula_str <- paste(input$outcomeVar, "~", paste(rhs, collapse=" + "))
+  model <- lm(as.formula(formula_str), data=df)
   cat("Linear Regression Model:\n")
   print(formula(model))
   cat("\n\nModel Summary:\n")
   summary(model)
-  
-  output$downloadData <- downloadHandler(
-    filename = function() "filtered_sleep_data.csv",
-    content = function(file) {
-      write.csv(filtered_data(), file, row.names = FALSE)
-    }
-  )
-}
-)
+})
+output$downloadData <- downloadHandler(
+  filename = function() "filtered_sleep_data.csv",
+  content = function(file) {
+    write.csv(filtered_data(), file, row.names = FALSE)})
 }
 
 # Run the application
