@@ -137,3 +137,119 @@ ui <- fluidPage(
     )
   )
 )
+
+
+Gavazi, Jona
+11:49 AM (1 hour ago)
+to me
+
+# Create Server:
+
+server <- function(input, output) {
+  
+  # Filtered dataset (reactive)
+  filtered_data <- reactive({
+    sleep_df %>%
+      filter(
+        Sleep_Hours >= input$sleepRange[1],
+        Sleep_Hours <= input$sleepRange[2],
+        Age >= input$ageRange[1],
+        Age <= input$ageRange[2],
+        Gender %in% input$genderFilter
+      )
+  })
+  
+  # Data table
+  output$dataTable <- DT::renderDT({
+    filtered_data()
+  }, options = list(pageLength = 8, scrollX = TRUE))
+  
+  # Summary
+  output$summaryOutput <- renderPrint({
+    summary(filtered_data())
+  })
+  
+  # Histogram
+  output$histPlot <- renderPlot({
+    df <- filtered_data()
+    req(nrow(df) > 0)
+    
+    ggplot(df, aes(x = .data[[input$histVar]])) +
+      geom_histogram(bins = 25, color = "black") +
+      labs(
+        title = paste("Distribution of", input$histVar),
+        x = input$histVar,
+        y = "Count"
+      ) +
+      theme_minimal()
+  })
+  
+  # Scatterplot (Sleep vs Cognition)
+  output$scatterPlot <- renderPlot({
+    df <- filtered_data()
+    req(nrow(df) > 0)
+    
+    ggplot(df, aes(
+      x = .data[[input$xVar]],
+      y = .data[[input$yVar]],
+      color = Gender
+    )) +
+      geom_point(size = 2, alpha = 0.8) +
+      geom_smooth(method = "lm", se = FALSE) +
+      labs(
+        title = paste(input$yVar, "vs", input$xVar),
+        x = input$xVar,
+        y = input$yVar
+      ) +
+      theme_minimal()
+  })
+  
+  # Caffeine vs Sleep
+  output$caffeinePlot <- renderPlot({
+    df <- filtered_data()
+    req(nrow(df) > 0)
+    
+    ggplot(df, aes(x = Caffeine_Intake, y = Sleep_Hours)) +
+      geom_point(alpha = 0.7) +
+      geom_smooth(method = "lm", se = FALSE) +
+      labs(
+        title = "Caffeine Intake vs Sleep Hours",
+        x = "Caffeine Intake",
+        y = "Sleep Hours"
+      ) +
+      theme_minimal()
+  })
+  
+  # Stress vs Sleep
+  output$stressPlot <- renderPlot({
+    df <- filtered_data()
+    req(nrow(df) > 0)
+    
+    ggplot(df, aes(x = Stress_Level, y = Sleep_Hours)) +
+      geom_point(alpha = 0.7) +
+      geom_smooth(method = "lm", se = FALSE) +
+      labs(
+        title = "Stress Level vs Sleep Hours",
+        x = "Stress Level",
+        y = "Sleep Hours"
+      ) +
+      theme_minimal()
+  })
+  
+  # Model
+  output$modelOutput <- renderPrint({
+    df <- filtered_data()
+    req(nrow(df) >= 10)
+    
+    rhs <- c("Sleep_Hours", input$covariates)
+    formula_str <- paste(input$outcomeVar, "~", paste(rhs, collapse = " + "))
+    model <- lm(as.formula(formula_str), data = df)
+    
+    cat("Linear Regression Model:\n")
+    print(formula(model))
+    cat("\n\nModel Summary:\n")
+    summary(model)
+  })
+}
+# Run the application
+shinyApp(ui = ui, server = server)
