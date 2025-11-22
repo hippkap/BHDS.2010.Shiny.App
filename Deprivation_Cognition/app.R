@@ -271,6 +271,8 @@ output$downloadData <- downloadHandler(
   content = function(file) {
     write.csv(filtered_data(), file, row.names = FALSE)})
 }
-
 # Run the application
 shinyApp(ui = ui, server = server)
+# Uploading to Shiny.io
+install.packages("rsconnect", type = "binary")
+library(rsconnect)
