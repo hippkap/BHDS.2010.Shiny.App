@@ -274,3 +274,7 @@ output$downloadData <- downloadHandler(
 
 # Run the application
 shinyApp(ui = ui, server = server)
+
+# Uploading to Shiny.io
+install.packages("rsconnect", type = "binary")
+library(rsconnect)
