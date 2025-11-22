@@ -2,25 +2,55 @@ install.packages("shiny")
 install.packages("DT")
 install.packages("ggplot2")
 install.packages("dplyr")
+install.packages("bslib")
 library(shiny)
 library(DT)
 library(ggplot2)
 library(dplyr)
+library(bslib)
 
 sleep_df <- read.csv(
   "sleep_deprivation_dataset_detailed 2.csv",
-  stringsAsFactors = FALSE
-)
-
+  stringsAsFactors = FALSE)
 sleep_df$Gender <- factor(sleep_df$Gender)
+
+# Generating a custom theme 
+my_theme <- bs_theme(
+  version = 5,
+  bootswatch = "minty",
+  base_font = font_google("Inter"),
+  bg = "#f7f9fc",
+  fg = "#1b1f24",
+  primary = "#2C7FB8"
+)
 
 # Create UI:
 
-ui <- fluidPage(
+ui <- fluidPage(theme = my_theme,
+  tags$head(
+  tags$style(HTML("
+      .sidebar {
+        background: white;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.06);}
+      .section-title {
+        font-weight: 700;
+        font-size: 18px;
+        margin-top: 6px;
+        margin-bottom: 10px;
+        color: #2C7FB8;}
+      .help-note {
+        font-size: 12.5px;
+        color: #6c757d;
+        margin-top: -6px;
+        margin-bottom: 12px;}"))
+        ),
   titlePanel("Sleep Deprivation & Cognitive Performance Explorer"),
   sidebarLayout(
     sidebarPanel(
-      h4("Filter Participants"),
+      class = "sidebar",
+      div(class="section-title", "Filter Participants"),
       sliderInput(
         "sleepRange",
         "Sleep Hours (per night):",
@@ -30,6 +60,7 @@ ui <- fluidPage(
                   max(sleep_df$Sleep_Hours, na.rm = TRUE)),
         step = 0.1
       ),
+      div(class="help-note", "Drag to focus on short vs long sleepers."),
       sliderInput(
         "ageRange",
         "Age:",
@@ -43,10 +74,12 @@ ui <- fluidPage(
         "genderFilter",
         "Gender:",
         choices = levels(sleep_df$Gender),
-        selected = levels(sleep_df$Gender)
+        selected = levels(sleep_df$Gender),
+        inline = TRUE
       ),
+      actionButton("resetBtn", "Reset filters", icon = icon("rotate-left")),
       tags$hr(),
-      h4("Plot Controls"),
+      div(class="section-title", "Plot Controls"),
       selectInput(
         "histVar",
         "Histogram variable:",
@@ -62,12 +95,12 @@ ui <- fluidPage(
           "Physical_Activity_Level",
           "Stress_Level",
           "BMI"
-        ),
+      ),
         selected = "Sleep_Hours"
       ),
       selectInput(
         "xVar",
-        "X-axis (usually sleep):",
+        "X-axis (sleep metric):",
         choices = c("Sleep_Hours","Sleep_Quality_Score","Daytime_Sleepiness"),
         selected = "Sleep_Hours"
       ),
@@ -79,11 +112,11 @@ ui <- fluidPage(
           "N_Back_Accuracy",
           "PVT_Reaction_Time",
           "Emotion_Regulation_Score"
-        ),
+      ),
         selected = "PVT_Reaction_Time"
       ),
       tags$hr(),
-      h4("Model Controls"),
+      div(class="section-title", "Model Controls"),
       selectInput(
         "outcomeVar",
         "Model outcome (Y):",
@@ -101,29 +134,40 @@ ui <- fluidPage(
         choices = c("Age","Gender","BMI","Caffeine_Intake",
                     "Physical_Activity_Level","Stress_Level"),
         selected = c("Age","Gender")
-      )
+      ),
+      downloadButton("downloadData", "Download filtered data")
     ),
     mainPanel(
-      tabsetPanel(
-        tabPanel("Data", DTOutput("dataTable")),
-        tabPanel("Summary", verbatimTextOutput("summaryOutput")),
-        tabPanel(
-          "Sleep → Cognition",
-          h4("Histogram"),
-          plotOutput("histPlot"),
-          tags$hr(),
-          h4("Sleep vs Cognitive Outcome"),
-          plotOutput("scatterPlot")
+      navset_card_tab(
+        nav_panel("Data", icon = icon("table"),
+                  card(
+                    card_header(textOutput("nText")),
+                    DTOutput("dataTable"))
         ),
-        tabPanel(
-          "Lifestyle",
-          h4("Caffeine vs Sleep"),
-          plotOutput("caffeinePlot"),
-          tags$hr(),
-          h4("Stress vs Sleep"),
-          plotOutput("stressPlot")
+        nav_panel("Summary", icon = icon("chart-bar"),
+                  card(
+                    card_header("Summary statistics"),
+                    verbatimTextOutput("summaryOutput"))
         ),
-        tabPanel("Model", verbatimTextOutput("modelOutput"))
+        nav_panel("Sleep → Cognition", icon = icon("brain"),
+                  layout_column_wrap(width = 1/2,
+                                     card(
+                                       card_header("Histogram"),
+                                       plotOutput("histPlot", height = 320)),
+                  card(card_header("Sleep vs Cognitive Outcome"),
+                  plotOutput("scatterPlot", height = 320)))
+        ),
+        nav_panel("Lifestyle", icon = icon("mug-hot"),
+                  layout_column_wrap(width = 1/2,
+                  card(card_header("Caffeine vs Sleep"),
+                  plotOutput("caffeinePlot", height = 320)),
+                  card(card_header("Stress vs Sleep"),
+                  plotOutput("stressPlot", height = 320)))
+        ),
+        nav_panel("Model", icon = icon("calculator"),
+                  card(card_header("Linear regression"),
+                    verbatimTextOutput("modelOutput"))
+        )
       )
     )
   )
@@ -152,15 +196,28 @@ output$summaryOutput <- renderPrint({
 output$histPlot <- renderPlot({
   df <- filtered_data()
   req(nrow(df) > 0)
-ggplot(df, aes_string(x = input$histVar)) +
-    geom_histogram(bins = 25, color = "black") +
+  
+  ggplot(df, aes_string(x = input$histVar)) +
+    geom_histogram(
+      bins = 25,
+      aes(fill = ..count..),
+      color = "white",
+      alpha = 0.95
+    ) +
+    scale_fill_gradient(
+      low = "#D9F3EF",
+      high = "#3BAFA3"
+    ) +
     labs(
       title = paste("Distribution of", input$histVar),
       x = input$histVar,
       y = "Count"
     ) +
-    theme_minimal()
-})
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(face = "bold", size = 16),
+      legend.position = "none"
+    )})
 output$scatterPlot <- renderPlot({
   df <- filtered_data()
   req(nrow(df) > 0)
@@ -195,7 +252,7 @@ ggplot(df, aes(x = Stress_Level, y = Sleep_Hours)) +
     labs(
       title = "Stress Level vs Sleep Hours",
       x = "Stress Level",
-      y = "Sleep Hours"
+      y = "Sleep_Hours"
     ) +
     theme_minimal()})
 output$modelOutput <- renderPrint({
