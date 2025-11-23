@@ -276,4 +276,4 @@ shinyApp(ui = ui, server = server)
 
 # Uploading to Shiny.io
 # install.packages("rsconnect", type = "binary")
-library(rsconnect)
+# library(rsconnect)
