@@ -1,8 +1,8 @@
-install.packages("shiny")
-install.packages("DT")
-install.packages("ggplot2")
-install.packages("dplyr")
-install.packages("bslib")
+#install.packages("shiny")
+#install.packages("DT")
+#install.packages("ggplot2")
+#install.packages("dplyr")
+#install.packages("bslib")
 library(shiny)
 library(DT)
 library(ggplot2)
@@ -10,7 +10,7 @@ library(dplyr)
 library(bslib)
 
 sleep_df <- read.csv(
-  "sleep_deprivation_dataset_detailed 2.csv",
+  "sleep_deprivation_dataset.csv",
   stringsAsFactors = FALSE)
 sleep_df$Gender <- factor(sleep_df$Gender)
 
@@ -273,6 +273,7 @@ output$downloadData <- downloadHandler(
 }
 # Run the application
 shinyApp(ui = ui, server = server)
+
 # Uploading to Shiny.io
-install.packages("rsconnect", type = "binary")
+# install.packages("rsconnect", type = "binary")
 library(rsconnect)
