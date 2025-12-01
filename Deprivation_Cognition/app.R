@@ -303,20 +303,29 @@ server <- function(input, output, session) {
         pageLength = 8,
         scrollX = TRUE),rownames = FALSE)
   })
+  
+  
   output$summaryBoxPlot <- renderPlot({
     df <- filtered_data()
     req(nrow(df) > 0)
-    df_long <- df %>% dplyr::select("Sleep Hours"= Sleep_Hours,
-        "Sleep Quality Score" = Sleep_Quality_Score,
-        "PVT Reaction Time" = PVT_Reaction_Time) %>%
-      tidyr::pivot_longer(cols = everything(), names_to = "Measure",
-      values_to = "Value")
-  ggplot(df_long, aes(x = Measure, y = Value, fill = Measure)) +
+    df_long <- df %>% dplyr::select(
+        "PVT Reaction Time"   = PVT_Reaction_Time,
+        "Sleep Hours"         = Sleep_Hours,
+        "Sleep Quality Score" = Sleep_Quality_Score
+      ) %>% tidyr::pivot_longer(
+        cols = everything(),
+        names_to  = "Measure",
+        values_to = "Value")
+    df_long$Measure <- factor(df_long$Measure,
+      levels = c("PVT Reaction Time", "Sleep Hours", "Sleep Quality Score"))
+    ggplot(df_long, aes(x = Measure, y = Value, fill = Measure)) +
       geom_boxplot(alpha = 0.85, width = 0.6, outlier.alpha = 0.5) +
-      facet_wrap(~ Measure, scales = "free_y") + labs(x = NULL, y = NULL) +
-      theme_minimal(base_size = 13) +
-      theme(legend.position = "none", strip.text = element_text(face = "bold"),
-        panel.grid.minor = element_blank())
+      coord_flip() +  # horizontal boxes = much easier to read
+      labs(x = NULL, y = NULL) + theme_minimal(base_size = 13) + theme(
+        legend.position   = "none",
+        panel.grid.minor  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.text.y       = element_text(face = "bold"))
   })
   gender_cols <- c("Female" = "#E07A9B", "Male" = "#4C9FCD")
   output$histPlot <- renderPlot({
