@@ -303,29 +303,37 @@ server <- function(input, output, session) {
         pageLength = 8,
         scrollX = TRUE),rownames = FALSE)
   })
-  
-  
   output$summaryBoxPlot <- renderPlot({
     df <- filtered_data()
     req(nrow(df) > 0)
-    df_long <- df %>% dplyr::select(
-        "PVT Reaction Time"   = PVT_Reaction_Time,
-        "Sleep Hours"         = Sleep_Hours,
-        "Sleep Quality Score" = Sleep_Quality_Score
-      ) %>% tidyr::pivot_longer(
-        cols = everything(),
+  df_long <- df %>%
+      dplyr::select(
+        `PVT Reaction Time`   = PVT_Reaction_Time,
+        `Sleep Hours`         = Sleep_Hours,
+        `Sleep Quality Score` = Sleep_Quality_Score) %>%
+      mutate(
+        `PVT Reaction Time`   = scale(`PVT Reaction Time`)[, 1],
+        `Sleep Hours`         = scale(`Sleep Hours`)[, 1],
+        `Sleep Quality Score` = scale(`Sleep Quality Score`)[, 1]) %>%
+      tidyr::pivot_longer(
+        cols      = everything(),
         names_to  = "Measure",
-        values_to = "Value")
-    df_long$Measure <- factor(df_long$Measure,
+        values_to = "Z_value")
+ df_long$Measure <- factor(df_long$Measure,
       levels = c("PVT Reaction Time", "Sleep Hours", "Sleep Quality Score"))
-    ggplot(df_long, aes(x = Measure, y = Value, fill = Measure)) +
-      geom_boxplot(alpha = 0.85, width = 0.6, outlier.alpha = 0.5) +
-      coord_flip() +  # horizontal boxes = much easier to read
-      labs(x = NULL, y = NULL) + theme_minimal(base_size = 13) + theme(
-        legend.position   = "none",
-        panel.grid.minor  = element_blank(),
-        panel.grid.major.y = element_blank(),
-        axis.text.y       = element_text(face = "bold"))
+ ggplot(df_long, aes(x = Measure, y = Z_value, fill = Measure)) +
+      geom_boxplot(alpha = 0.7, width = 0.55, outlier.alpha = 0.5) +
+      coord_flip() +
+      labs(x = NULL, y = "Standardized value (z-score)") +
+      scale_fill_manual(values = c(
+        "PVT Reaction Time"   = "#F28E8C",
+        "Sleep Hours"         = "#8BC9A6",
+        "Sleep Quality Score" = "#7FB3E6")) + theme_minimal(base_size = 13) +
+      theme(
+        legend.position     = "none",
+        panel.grid.minor    = element_blank(),
+        panel.grid.major.y  = element_blank(),
+        axis.text.y         = element_text(face = "bold"))
   })
   gender_cols <- c("Female" = "#E07A9B", "Male" = "#4C9FCD")
   output$histPlot <- renderPlot({
