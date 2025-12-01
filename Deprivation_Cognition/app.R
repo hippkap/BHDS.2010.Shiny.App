@@ -216,6 +216,7 @@ server <- function(input, output, session) {
     req(nrow(df) > 0)
     num_df <- df %>% dplyr::select(where(is.numeric))
     req(ncol(num_df) > 0)
+    
     summary_tbl <- num_df %>%
       summarise(across(
         everything(),
@@ -226,21 +227,41 @@ server <- function(input, output, session) {
           Mean   = ~mean(.x, na.rm = TRUE),
           Q3     = ~quantile(.x, 0.75, na.rm = TRUE),
           Max    = ~max(.x, na.rm = TRUE)
-        )
+        ),
+        .names = "{.col}_{.fn}"
       )) %>%
       tidyr::pivot_longer(
         cols = everything(),
-        names_to = c("Variable", ".value"),
-        names_sep = "_"
+        names_to   = c("Variable", "Statistic"),
+        names_pattern = "^(.*)_(Min|Q1|Median|Mean|Q3|Max)$"
+      ) %>%
+      tidyr::pivot_wider(
+        names_from  = Statistic,
+        values_from = value
       ) %>%
       arrange(Variable)
+    summary_tbl$Variable <- dplyr::recode(
+      summary_tbl$Variable,
+      Sleep_Hours             = "Sleep hours (per night)",
+      Sleep_Quality_Score     = "Sleep quality score",
+      Daytime_Sleepiness      = "Daytime sleepiness",
+      Stroop_Task_Reaction_Time = "Stroop reaction time",
+      N_Back_Accuracy         = "N-back accuracy",
+      PVT_Reaction_Time       = "PVT reaction time",
+      Emotion_Regulation_Score = "Emotion regulation score",
+      Caffeine_Intake         = "Caffeine intake",
+      Physical_Activity_Level = "Physical activity level",
+      Stress_Level            = "Stress level",
+      BMI                     = "BMI"
+    )
     DT::datatable(
       summary_tbl,
       options = list(
         pageLength = 8,
-        scrollX = TRUE
+        scrollX    = TRUE
       ),
-      rownames = FALSE)
+      rownames = FALSE
+    )
   })
   gender_cols <- c("Female" = "#E07A9B", "Male" = "#4C9FCD")
   output$histPlot <- renderPlot({
