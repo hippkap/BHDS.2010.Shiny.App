@@ -100,26 +100,34 @@ ui <- fluidPage(theme = my_theme,
                       ),
                       selected = "Sleep_Hours"
                     ),
-         selectInput(
+   selectInput(
           "xVar",
           "X-axis (sleep metric):",
           choices = c("Sleep_Hours","Sleep_Quality_Score","Daytime_Sleepiness"),
           selected = "Sleep_Hours"
-                    ),
-          selectInput(
-                      "yVar",
-                      "Y-axis (cognitive outcome):",
-                      choices = c(
-                        "Stroop_Task_Reaction_Time",
-                        "N_Back_Accuracy",
-                        "PVT_Reaction_Time",
-                        "Emotion_Regulation_Score"
-                      ),
-                      selected = "PVT_Reaction_Time"
-                    ),
-                    tags$hr(),
-                    div(class="section-title", "Model Controls"),
-                    selectInput(
+        ),
+    selectInput(
+          "yVar",
+          "Y-axis (cognitive outcome):",
+          choices = c(
+            "Stroop_Task_Reaction_Time",
+            "N_Back_Accuracy",
+            "PVT_Reaction_Time",
+            "Emotion_Regulation_Score"
+          ),
+          selected = "PVT_Reaction_Time"
+        ),
+        tags$hr(),
+        div(class = "section-title", "Summary Controls"),
+        checkboxGroupInput(
+          "summaryStats",
+          "Summary statistics to display:",
+          choices  = c("Min","Q1","Median","Mean","SD","Variance","Q3","Max"),
+          selected = c("Min","Q1","Median","Mean","SD","Variance","Q3","Max")
+        ),
+        tags$hr(),
+        div(class="section-title", "Model Controls"),
+    selectInput(
                       "outcomeVar",
                       "Model outcome (Y):",
                       choices = c(
@@ -216,44 +224,58 @@ server <- function(input, output, session) {
     req(nrow(df) > 0)
     num_df <- df %>% dplyr::select(where(is.numeric))
     req(ncol(num_df) > 0)
-    
+    stat_names <- c("Min","Q1","Median","Mean","SD","Variance","Q3","Max")
     summary_tbl <- num_df %>%
       summarise(across(
         everything(),
         list(
-          Min    = ~min(.x, na.rm = TRUE),
-          Q1     = ~quantile(.x, 0.25, na.rm = TRUE),
-          Median = ~median(.x, na.rm = TRUE),
-          Mean   = ~mean(.x, na.rm = TRUE),
-          Q3     = ~quantile(.x, 0.75, na.rm = TRUE),
-          Max    = ~max(.x, na.rm = TRUE)
+          Min      = ~min(.x, na.rm = TRUE),
+          Q1       = ~quantile(.x, 0.25, na.rm = TRUE),
+          Median   = ~median(.x, na.rm = TRUE),
+          Mean     = ~mean(.x, na.rm = TRUE),
+          SD       = ~sd(.x, na.rm = TRUE),
+          Variance = ~var(.x, na.rm = TRUE),
+          Q3       = ~quantile(.x, 0.75, na.rm = TRUE),
+          Max      = ~max(.x, na.rm = TRUE)
         ),
         .names = "{.col}_{.fn}"
       )) %>%
       tidyr::pivot_longer(
         cols = everything(),
         names_to   = c("Variable", "Statistic"),
-        names_pattern = "^(.*)_(Min|Q1|Median|Mean|Q3|Max)$"
+        # everything before the last "_" is the variable name
+        names_pattern = "^(.*)_(Min|Q1|Median|Mean|SD|Variance|Q3|Max)$"
       ) %>%
       tidyr::pivot_wider(
         names_from  = Statistic,
         values_from = value
-      ) %>%
-      arrange(Variable)
+      )
     summary_tbl$Variable <- dplyr::recode(
       summary_tbl$Variable,
-      Sleep_Hours             = "Sleep hours (per night)",
-      Sleep_Quality_Score     = "Sleep quality score",
-      Daytime_Sleepiness      = "Daytime sleepiness",
-      Stroop_Task_Reaction_Time = "Stroop reaction time",
-      N_Back_Accuracy         = "N-back accuracy",
-      PVT_Reaction_Time       = "PVT reaction time",
-      Emotion_Regulation_Score = "Emotion regulation score",
-      Caffeine_Intake         = "Caffeine intake",
-      Physical_Activity_Level = "Physical activity level",
-      Stress_Level            = "Stress level",
-      BMI                     = "BMI"
+      Sleep_Hours               = "Sleep Hours (per night)",
+      Sleep_Quality_Score       = "Sleep Quality Score",
+      Daytime_Sleepiness        = "Daytime Sleepiness",
+      Stroop_Task_Reaction_Time = "Stroop Task Reaction Time",
+      N_Back_Accuracy           = "N-Back Accuracy",
+      PVT_Reaction_Time         = "PVT Reaction Time",
+      Emotion_Regulation_Score  = "Emotion Regulation Score",
+      Caffeine_Intake           = "Caffeine Intake",
+      Physical_Activity_Level   = "Physical Activity Level",
+      Stress_Level              = "Stress Level",
+      BMI                       = "BMI"
     )
+    summary_tbl <- summary_tbl %>%
+      arrange(Variable)
+    summary_tbl <- summary_tbl %>%
+      dplyr::mutate(across(where(is.numeric), ~round(.x, 2)))
+    selected_stats <- input$summaryStats
+    if (is.null(selected_stats) || length(selected_stats) == 0) {
+      summary_tbl <- summary_tbl %>% dplyr::select(Variable)
+    } else {
+      keep_stats <- intersect(stat_names, selected_stats)
+      summary_tbl <- summary_tbl %>%
+        dplyr::select(Variable, dplyr::all_of(keep_stats))
+    }
     DT::datatable(
       summary_tbl,
       options = list(
@@ -350,7 +372,7 @@ return("Interpretation: The coefficient for Sleep_Hours could not be estimated w
 }
 
 
-# Now to run the application
+# Now to run the application:
 shinyApp(ui = ui, server = server)
 # Uploading to Shiny.io
 # install.packages("rsconnect", type = "binary")
