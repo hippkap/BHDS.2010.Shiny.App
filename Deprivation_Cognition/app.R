@@ -190,19 +190,24 @@ ui <- fluidPage(
             )
           )
         ),
-        nav_panel("Lifestyle", icon = icon("mug-hot"),
-          p(class = "help-note",
-    "Do caffeine and stress appear to be associated with sleep hours?"
-          ),
-    layout_column_wrap(width = 1/2,
-    card(card_header("Caffeine vs Sleep"),
-    plotlyOutput("caffeinePlot", height = 320)),
-            card(
-              card_header("Stress vs Sleep"),
-              plotlyOutput("stressPlot", height = 320)
-            )
-          )
+      nav_panel("Lifestyle", icon = icon("mug-hot"),
+        p(class = "help-note",
+        "Do caffeine and stress appear to be associated with sleep hours?"
         ),
+        layout_column_wrap(width = 1/2,
+          card(card_header("Caffeine vs Sleep"),
+            p(class = "help-note",
+      "Each point is a participant; the line shows the fitted regression of sleep hours on caffeine intake."
+            ),
+            plotlyOutput("caffeinePlot", height = 320),tags$br(),
+            textOutput("caffeineSummaryText")),
+          card(card_header("Stress vs Sleep"),
+            p(class = "help-note",
+              "Each point is a participant; the line shows the fitted regression of sleep hours on stress level."
+            ),
+      plotlyOutput("stressPlot", height = 320), tags$br(),
+      textOutput("stressSummaryText")))
+      ),
         nav_panel(
           "Model", icon = icon("calculator"),
           layout_column_wrap(
@@ -405,40 +410,99 @@ server <- function(input, output, session) {
   output$caffeinePlot <- plotly::renderPlotly({
     df <- filtered_data()
     req(nrow(df) > 0)
+    sleep_range <- range(df$Sleep_Hours, na.rm = TRUE)
     if ("Participant_ID" %in% names(df)) {
-      df <- df %>%
-        mutate(Tooltip = paste0(
+      df <- df %>% mutate(
+          Tooltip = paste0(
             "ID: ", Participant_ID,
-            "<br>Caffeine: ", Caffeine_Intake,
-            "<br>Sleep Hours: ", Sleep_Hours))
-    } else {
-      df <- df %>%
-        mutate(Tooltip = paste0("Caffeine: ", Caffeine_Intake,
-                                "<br>Sleep Hours: ", Sleep_Hours))
+            "<br>Caffeine intake: ", Caffeine_Intake,
+            "<br>Sleep hours: ", round(Sleep_Hours, 2),
+            "<br>Gender: ", Gender))
+    } else {df <- df %>%
+        mutate(Tooltip = paste0(
+            "Caffeine intake: ", Caffeine_Intake,
+            "<br>Sleep hours: ", round(Sleep_Hours, 2),
+            "<br>Gender: ", Gender))
     }
-    p <- ggplot(df,aes(x = Caffeine_Intake, y = Sleep_Hours, text = Tooltip)
-    ) + geom_point(alpha = 0.7) + geom_smooth(method = "lm", se = FALSE, 
-    color = "#2C7FB8") + labs(x = "Caffeine Intake", y = "Sleep_Hours") +
-    theme_minimal(base_size = 12)
-  ggplotly(p, tooltip = "text")
+    p <- ggplot(df,aes(
+        x     = Caffeine_Intake,
+        y     = Sleep_Hours,
+        color = Gender,
+        text  = Tooltip)) +
+    geom_point(alpha = 0.8, size = 2.2) +
+      geom_smooth(method = "lm", se = TRUE, size = 0.7) +
+      scale_color_manual(values = gender_cols) +
+      coord_cartesian(ylim = sleep_range) +
+      labs(
+        x = "Caffeine intake (0–5 units per day)",
+        y = "Sleep hours per night",
+        color = "Gender"
+      ) + theme_minimal(base_size = 12) + theme(legend.position = "top")
+    ggplotly(p, tooltip = "text")
+  })
+  output$caffeineSummaryText <- renderText({
+    df <- filtered_data()
+    req(nrow(df) > 5)
+    if (length(unique(df$Caffeine_Intake)) < 2) {
+      return("Summary: Not enough variation in caffeine intake in the current filters to summarize a trend.")
+    }
+    fit <- lm(Sleep_Hours ~ Caffeine_Intake, data = df)
+    slope <- coef(fit)["Caffeine_Intake"]
+    r <- suppressWarnings(cor(df$Caffeine_Intake, df$Sleep_Hours, 
+                              use = "complete.obs"))
+    direction <- ifelse(slope < 0, "lower", "higher")
+    paste0(
+      "Summary: In this filtered sample, each 1-unit increase in caffeine intake is associated with about ",
+      round(abs(slope), 2), " fewer hours of sleep per night (r = ",
+      round(r, 2), "). That is, higher caffeine tends to be linked with ",
+      direction, " sleep.")
   })
   output$stressPlot <- plotly::renderPlotly({
     df <- filtered_data()
     req(nrow(df) > 0)
-    if ("Participant_ID" %in% names(df)) {df <- df %>% mutate(Tooltip = paste0(
+    sleep_range <- range(df$Sleep_Hours, na.rm = TRUE)
+    if ("Participant_ID" %in% names(df)) {
+      df <- df %>%
+        mutate(Tooltip = paste0(
             "ID: ", Participant_ID,
-            "<br>Stress: ", Stress_Level,
-            "<br>Sleep Hours: ", Sleep_Hours))
-    } else {
-      df <- df %>% mutate(Tooltip = paste0("Stress: ", Stress_Level,
-            "<br>Sleep Hours: ", Sleep_Hours))
-    }
-    p <- ggplot(df,aes(x = Stress_Level,y = Sleep_Hours, text = Tooltip)
-    ) + geom_point(alpha = 0.7) + geom_smooth(method = "lm", se = FALSE, 
-    color = "#2C7FB8") + labs(x = "Stress Level", y = "Sleep_Hours"
-    ) + theme_minimal(base_size = 12)
-  ggplotly(p, tooltip = "text")
+            "<br>Stress level: ", Stress_Level,
+            "<br>Sleep hours: ", round(Sleep_Hours, 2),
+            "<br>Gender: ", Gender))
+    } else {df <- df %>%
+        mutate(Tooltip = paste0(
+            "Stress level: ", Stress_Level,
+            "<br>Sleep hours: ", round(Sleep_Hours, 2),
+            "<br>Gender: ", Gender))}
+    p <- ggplot(df,aes(
+        x     = Stress_Level,
+        y     = Sleep_Hours,
+        color = Gender,
+        text  = Tooltip)
+    ) +
+      geom_point(alpha = 0.8, size = 2.2) +
+      geom_smooth(method = "lm", se = TRUE, size = 0.7) +
+      scale_color_manual(values = gender_cols) +
+      coord_cartesian(ylim = sleep_range) +
+      labs(x = "Stress level (0–40 scale)", y = "Sleep hours per night",
+        color = "Gender") + theme_minimal(base_size = 12) +
+      theme(legend.position = "top")
+    ggplotly(p, tooltip = "text")
   })
+  output$stressSummaryText <- renderText({df <- filtered_data()
+    req(nrow(df) > 5)
+    if (length(unique(df$Stress_Level)) < 2) {
+      return("Summary: Not enough variation in stress level in the current filters to summarize a trend.")
+    }
+    fit <- lm(Sleep_Hours ~ Stress_Level, data = df)
+    slope <- coef(fit)["Stress_Level"]
+    r <- suppressWarnings(cor(df$Stress_Level, df$Sleep_Hours,
+                                  use = "complete.obs"))
+    direction <- ifelse(slope < 0, "lower", "higher")
+    paste0(
+      "Summary: In this filtered sample, each 1-unit increase in stress is associated with about ",
+      round(abs(slope), 2), " hours of ",
+      direction, " sleep per night (r = ",
+      round(r, 2), ").")})
   current_model <- reactive({
     df <- filtered_data()
     req(nrow(df) >= 10)
