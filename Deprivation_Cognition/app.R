@@ -387,34 +387,45 @@ Try widening the sleep or age range, or re-select both genders."
       )})
   output$scatterPlot <- plotly::renderPlotly({
     df <- filtered_data()
-    validate(need(nrow(df) > 0,
-  "No participants match the current filters. Try widening the ranges above."))
+    validate(need(
+      nrow(df) > 0,
+  "No participants match the current filters. Try widening the ranges above."
+    ))
     if ("Participant_ID" %in% names(df)) {
-      df <- df %>%
-        mutate(
+      df <- df %>% mutate(
           Tooltip = paste0(
             "ID: ", Participant_ID,
             "<br>", input$xVar, ": ", round(.data[[input$xVar]], 2),
             "<br>", input$yVar, ": ", round(.data[[input$yVar]], 2),
-            "<br>Gender: ", Gender))
-    } else {
-      df <- df %>%
-        mutate(
-          Tooltip = paste0(
+            "<br>Gender: ", Gender)
+        )
+    } else {df <- df %>%
+        mutate(Tooltip = paste0(
             input$xVar, ": ", round(.data[[input$xVar]], 2),
             "<br>", input$yVar, ": ", round(.data[[input$yVar]], 2),
             "<br>Gender: ", Gender))
     }
     p <- ggplot(df,aes(
-        x = .data[[input$xVar]],
-        y = .data[[input$yVar]],
+        x     = .data[[input$xVar]],
+        y     = .data[[input$yVar]],
         color = Gender,
-        text  = Tooltip)) +
+        text  = Tooltip)
+    ) +
       geom_point(size = 2.2, alpha = 0.85) +
-      geom_smooth(method = "lm", se = FALSE) +
+      geom_smooth(
+        aes(group = 1),
+        method = "lm",
+        se     = FALSE,
+        color  = "#2C7FB8",
+        size   = 1.0
+      ) +
       scale_color_manual(values = gender_cols) +
-      labs(x = input$xVar,y = input$yVar) + theme_minimal(base_size = 12) +
-      theme(legend.position = "right")
+      labs(
+        x = input$xVar,
+        y = input$yVar,
+        color = "Gender"
+      ) +
+      theme_minimal(base_size = 12) + theme(legend.position = "right")
     ggplotly(p, tooltip = "text")
   })
   output$caffeinePlot <- plotly::renderPlotly({
