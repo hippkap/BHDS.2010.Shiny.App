@@ -48,11 +48,11 @@ ui <- fluidPage(theme = my_theme,
         margin-top: -6px;
         margin-bottom: 12px;}"))
                 ),
-                titlePanel("Sleep Deprivation & Cognitive Performance Explorer"),
+        titlePanel("Sleep Deprivation & Cognitive Performance Explorer"),
                 sidebarLayout(
                   sidebarPanel(
                     class = "sidebar",
-                    div(class="section-title", "Filter Participants"),
+        div(class="section-title", "Filter Participants"),
                     sliderInput(
                       "sleepRange",
                       "Sleep Hours (per night):",
@@ -62,7 +62,7 @@ ui <- fluidPage(theme = my_theme,
                                 max(sleep_df$Sleep_Hours, na.rm = TRUE)),
                       step = 0.1
                     ),
-                    div(class="help-note", "Drag to focus on short vs long sleepers."),
+        div(class="help-note", "Drag to focus on short vs long sleepers."),
                     sliderInput(
                       "ageRange",
                       "Age:",
@@ -79,7 +79,7 @@ ui <- fluidPage(theme = my_theme,
                       selected = levels(sleep_df$Gender),
                       inline = TRUE
                     ),
-                    actionButton("resetBtn", "Reset filters", icon = icon("rotate-left")),
+        actionButton("resetBtn", "Reset filters", icon = icon("rotate-left")),
                     tags$hr(),
                     div(class="section-title", "Plot Controls"),
                     selectInput(
@@ -100,13 +100,13 @@ ui <- fluidPage(theme = my_theme,
                       ),
                       selected = "Sleep_Hours"
                     ),
-                    selectInput(
-                      "xVar",
-                      "X-axis (sleep metric):",
-                      choices = c("Sleep_Hours","Sleep_Quality_Score","Daytime_Sleepiness"),
-                      selected = "Sleep_Hours"
+         selectInput(
+          "xVar",
+          "X-axis (sleep metric):",
+          choices = c("Sleep_Hours","Sleep_Quality_Score","Daytime_Sleepiness"),
+          selected = "Sleep_Hours"
                     ),
-                    selectInput(
+          selectInput(
                       "yVar",
                       "Y-axis (cognitive outcome):",
                       choices = c(
@@ -151,30 +151,30 @@ ui <- fluidPage(theme = my_theme,
                                   card_header("Summary statistics"),
                                   DTOutput("summaryTable"))
                       ),
-                      nav_panel("Sleep → Cognition", icon = icon("brain"),
-                                layout_column_wrap(width = 1/2,
-                                                   card(
-                                                     card_header("Histogram"),
-                                                     plotOutput("histPlot", height = 320)),
-                                                   card(card_header("Sleep vs Cognitive Outcome"),
-                                                        plotOutput("scatterPlot", height = 320)))
+      nav_panel("Sleep → Cognition", icon = icon("brain"),
+        layout_column_wrap(width = 1/2,
+        card(
+          card_header("Histogram"),
+          plotOutput("histPlot", height = 320)),
+          card(card_header("Sleep vs Cognitive Outcome"),
+          plotOutput("scatterPlot", height = 320)))
                       ),
-                      nav_panel("Lifestyle", icon = icon("mug-hot"),
-                                layout_column_wrap(width = 1/2,
-                                                   card(card_header("Caffeine vs Sleep"),
-                                                        plotOutput("caffeinePlot", height = 320)),
-                                                   card(card_header("Stress vs Sleep"),
-                                                        plotOutput("stressPlot", height = 320)))
+        nav_panel("Lifestyle", icon = icon("mug-hot"),
+          layout_column_wrap(width = 1/2,
+          card(card_header("Caffeine vs Sleep"),
+          plotOutput("caffeinePlot", height = 320)),
+          card(card_header("Stress vs Sleep"),
+          plotOutput("stressPlot", height = 320)))
                       ),
-                      nav_panel("Model", icon = icon("calculator"),
-                                card(
-                                  card_header("Linear regression"),
-                                  p(class = "help-note",
-                                    "This model uses the filtered sample and the covariates 
+        nav_panel("Model", icon = icon("calculator"),
+          card(
+          card_header("Linear regression"),
+          p(class = "help-note",
+          "This model uses the filtered sample and the covariates 
                       you selected below."),
-                                  textOutput("modelSummaryText"),
-                                  tags$hr(),
-                                  verbatimTextOutput("modelOutput"))
+          textOutput("modelSummaryText"),
+          tags$hr(),
+          verbatimTextOutput("modelOutput"))
                       )
                     )
                   )
@@ -327,7 +327,6 @@ server <- function(input, output, session) {
     content = function(file) {
       write.csv(filtered_data(), file, row.names = FALSE)})
 }
-
 
 
 # Now to run the application
