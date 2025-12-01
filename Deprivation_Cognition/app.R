@@ -328,6 +328,7 @@ server <- function(input, output, session) {
       write.csv(filtered_data(), file, row.names = FALSE)})
 }
 
+
 # Now to run the application
 shinyApp(ui = ui, server = server)
 # Uploading to Shiny.io
