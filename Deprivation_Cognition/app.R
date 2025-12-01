@@ -4,12 +4,14 @@
 #install.packages("dplyr")
 #install.packages("bslib")
 #install.packages("tidyr")
+#install.packages("plotly")
 library(shiny)
 library(DT)
 library(ggplot2)
 library(dplyr)
 library(bslib)
 library(tidyr)
+library(plotly)
 
 sleep_df <- read.csv(
   "sleep_deprivation_dataset.csv",
@@ -154,35 +156,57 @@ ui <- fluidPage(theme = my_theme,
                                   card_header(textOutput("nText")),
                                   DTOutput("dataTable"))
                       ),
-                      nav_panel("Summary", icon = icon("chart-bar"),
-                                card(
-                                  card_header("Summary statistics"),
-                                  DTOutput("summaryTable"))
-                      ),
-      nav_panel("Sleep → Cognition", icon = icon("brain"),
+      nav_panel("Summary", icon = icon("chart-bar"),
         layout_column_wrap(width = 1/2,
         card(
-          card_header("Histogram"),
-          plotOutput("histPlot", height = 320)),
-          card(card_header("Sleep vs Cognitive Outcome"),
-          plotOutput("scatterPlot", height = 320)))
+        card_header("Summary statistics"),
+        DTOutput("summaryTable")),
+        card(
+        card_header("Key distributions"),
+        plotOutput("summaryBoxPlot", height = 320)))
                       ),
-        nav_panel("Lifestyle", icon = icon("mug-hot"),
-          layout_column_wrap(width = 1/2,
-          card(card_header("Caffeine vs Sleep"),
-          plotOutput("caffeinePlot", height = 320)),
-          card(card_header("Stress vs Sleep"),
-          plotOutput("stressPlot", height = 320)))
-                      ),
-        nav_panel("Model", icon = icon("calculator"),
-          card(
-          card_header("Linear regression"),
-          p(class = "help-note",
-          "This model uses the filtered sample and the covariates 
-                      you selected below."),
-          textOutput("modelSummaryText"),
-          tags$hr(),
-          verbatimTextOutput("modelOutput"))
+      nav_panel("Sleep → Cognition", icon = icon("brain"),
+        p(
+        class = "help-note",
+      "How does sleep duration, quality, or daytime sleepiness relate to each cognitive outcome?"
+       ),
+       layout_column_wrap(width = 1/2,
+       card(
+       card_header("Histogram"),
+       plotOutput("histPlot", height = 320)
+       ),
+       card(
+       card_header("Sleep vs Cognitive Outcome"),
+       plotlyOutput("scatterPlot", height = 320)))
+      ),
+      nav_panel("Lifestyle", icon = icon("mug-hot"),
+       p(
+       class = "help-note",
+       "Do caffeine and stress appear to be associated with sleep hours?"),
+        layout_column_wrap(width = 1/2,
+        card(
+        card_header("Caffeine vs Sleep"),
+        plotlyOutput("caffeinePlot", height = 320)
+        ),
+        card(
+        card_header("Stress vs Sleep"),
+        plotlyOutput("stressPlot", height = 320)))
+       ),
+      nav_panel("Model", icon = icon("calculator"),
+        layout_column_wrap(width = 1,
+        card(
+        card_header("Linear regression"),
+        p(
+        class = "help-note",
+    "This model uses the filtered sample and the covariates you selected below."
+        ),
+        textOutput("modelSummaryText"),
+        tags$hr(),
+        verbatimTextOutput("modelOutput")
+        ),
+        card(
+        card_header("Diagnostics: Residuals vs Fitted"),
+        plotOutput("residPlot", height = 280)))
                       )
                     )
                   )
@@ -248,8 +272,7 @@ server <- function(input, output, session) {
       ) %>%
       tidyr::pivot_wider(
         names_from  = Statistic,
-        values_from = value
-      )
+        values_from = value)
     summary_tbl$Variable <- dplyr::recode(
       summary_tbl$Variable,
       Sleep_Hours               = "Sleep Hours (per night)",
@@ -262,8 +285,7 @@ server <- function(input, output, session) {
       Caffeine_Intake           = "Caffeine Intake",
       Physical_Activity_Level   = "Physical Activity Level",
       Stress_Level              = "Stress Level",
-      BMI                       = "BMI"
-    )
+      BMI                       = "BMI")
     summary_tbl <- summary_tbl %>%
       arrange(Variable)
     summary_tbl <- summary_tbl %>%
@@ -274,16 +296,25 @@ server <- function(input, output, session) {
     } else {
       keep_stats <- intersect(stat_names, selected_stats)
       summary_tbl <- summary_tbl %>%
-        dplyr::select(Variable, dplyr::all_of(keep_stats))
-    }
+        dplyr::select(Variable, dplyr::all_of(keep_stats))}
     DT::datatable(
       summary_tbl,
       options = list(
         pageLength = 8,
-        scrollX    = TRUE
-      ),
-      rownames = FALSE
-    )
+        scrollX = TRUE),rownames = FALSE)
+  })
+  output$summaryBoxPlot <- renderPlot({
+    df <- filtered_data()
+    req(nrow(df) > 0)
+    df_long <- df %>%
+      dplyr::select(Sleep_Hours, Sleep_Quality_Score, PVT_Reaction_Time) %>%
+      tidyr::pivot_longer(
+        cols = everything(),
+        names_to = "Variable",
+        values_to = "Value")
+  ggplot(df_long, aes(x = Variable, y = Value)) +
+      geom_boxplot(fill = "#2C7FB8", alpha = 0.6) +
+      labs(x = NULL,y = "Score / Hours") + theme_minimal(base_size = 12)
   })
   gender_cols <- c("Female" = "#E07A9B", "Male" = "#4C9FCD")
   output$histPlot <- renderPlot({
@@ -310,29 +341,79 @@ server <- function(input, output, session) {
         plot.title = element_text(face = "bold", size = 16),
         legend.position = "none"
       )})
-  output$scatterPlot <- renderPlot({
-    df <- filtered_data(); req(nrow(df) > 0)
-    ggplot(df, aes_string(x=input$xVar, y=input$yVar, color="Gender")) +
-      geom_point(size=2.2, alpha=0.85) +
-      geom_smooth(method="lm", se=FALSE) +
+  
+  
+  output$scatterPlot <- plotly::renderPlotly({
+    df <- filtered_data()
+    req(nrow(df) > 0)
+    if ("Participant_ID" %in% names(df)) {
+      df <- df %>%
+        mutate(
+          Tooltip = paste0(
+            "ID: ", Participant_ID,
+            "<br>", input$xVar, ": ", round(.data[[input$xVar]], 2),
+            "<br>", input$yVar, ": ", round(.data[[input$yVar]], 2),
+            "<br>Gender: ", Gender))
+    } else {
+      df <- df %>%
+        mutate(
+          Tooltip = paste0(
+            input$xVar, ": ", round(.data[[input$xVar]], 2),
+            "<br>", input$yVar, ": ", round(.data[[input$yVar]], 2),
+            "<br>Gender: ", Gender))
+    }
+    p <- ggplot(df,aes(
+        x = .data[[input$xVar]],
+        y = .data[[input$yVar]],
+        color = Gender,
+        text  = Tooltip)) +
+      geom_point(size = 2.2, alpha = 0.85) +
+      geom_smooth(method = "lm", se = FALSE) +
       scale_color_manual(values = gender_cols) +
-      labs(x=input$xVar, y=input$yVar) +
-      theme_minimal(base_size = 12) +
-      theme(legend.position="right")
+      labs(x = input$xVar,y = input$yVar) + theme_minimal(base_size = 12) +
+      theme(legend.position = "right")
+    ggplotly(p, tooltip = "text")
   })
-  output$caffeinePlot <- renderPlot({
-    df <- filtered_data(); req(nrow(df) > 0)
-    ggplot(df, aes(x=Caffeine_Intake, y=Sleep_Hours)) +
-      geom_point(alpha=0.7) +
-      geom_smooth(method="lm", se=FALSE, color="#2C7FB8") +
-      theme_minimal(base_size = 12)
+  
+  
+  output$caffeinePlot <- plotly::renderPlotly({
+    df <- filtered_data()
+    req(nrow(df) > 0)
+    if ("Participant_ID" %in% names(df)) {
+      df <- df %>%
+        mutate(Tooltip = paste0(
+            "ID: ", Participant_ID,
+            "<br>Caffeine: ", Caffeine_Intake,
+            "<br>Sleep Hours: ", Sleep_Hours))
+    } else {
+      df <- df %>%
+        mutate(Tooltip = paste0("Caffeine: ", Caffeine_Intake,
+                                "<br>Sleep Hours: ", Sleep_Hours))
+    }
+    p <- ggplot(df,aes(x = Caffeine_Intake, y = Sleep_Hours, text = Tooltip)
+    ) + geom_point(alpha = 0.7) + geom_smooth(method = "lm", se = FALSE, 
+    color = "#2C7FB8") + labs(x = "Caffeine Intake", y = "Sleep_Hours") +
+    theme_minimal(base_size = 12)
+  ggplotly(p, tooltip = "text")
   })
-  output$stressPlot <- renderPlot({
-    df <- filtered_data(); req(nrow(df) > 0)
-    ggplot(df, aes(x=Stress_Level, y=Sleep_Hours)) +
-      geom_point(alpha=0.7) +
-      geom_smooth(method="lm", se=FALSE, color="#2C7FB8") +
-      theme_minimal(base_size = 12)
+  
+  
+  output$stressPlot <- plotly::renderPlotly({
+    df <- filtered_data()
+    req(nrow(df) > 0)
+    if ("Participant_ID" %in% names(df)) {df <- df %>% mutate(Tooltip = paste0(
+            "ID: ", Participant_ID,
+            "<br>Stress: ", Stress_Level,
+            "<br>Sleep Hours: ", Sleep_Hours))
+    } else {
+      df <- df %>% mutate(Tooltip = paste0("Stress: ", Stress_Level,
+            "<br>Sleep Hours: ", Sleep_Hours))
+    }
+    p <- ggplot(df,aes(x = Stress_Level,y = Sleep_Hours, text = Tooltip)
+    ) + geom_point(alpha = 0.7) + geom_smooth(method = "lm", se = FALSE, 
+    color = "#2C7FB8") + labs(x = "Stress Level", y = "Sleep_Hours"
+    ) + theme_minimal(base_size = 12)
+  ggplotly(p, tooltip = "text")
   })
   current_model <- reactive({
     df <- filtered_data()
@@ -347,6 +428,15 @@ server <- function(input, output, session) {
     cat("\n\nModel Summary:\n")
     summary(model)
   })
+  output$residPlot <- renderPlot({
+  model <- current_model()
+  df_resid <- data.frame(
+    Fitted    = fitted(model),
+    Residuals = resid(model))
+  ggplot(df_resid, aes(x = Fitted, y = Residuals)) + geom_point(alpha = 0.7) +
+    geom_hline(yintercept = 0, linetype = "dashed") + labs(x = "Fitted values",
+      y = "Residuals") + theme_minimal(base_size = 12)
+})
   output$modelSummaryText <- renderText({
     model <- current_model()
     sm <- summary(model)
@@ -362,8 +452,7 @@ return("Interpretation: The coefficient for Sleep_Hours could not be estimated w
       round(abs(coef_sleep), 2), " unit ", direction, " in ", outcome,
       " on average, holding the selected covariates constant. ",
       "In this filtered sample, the model explains about ",
-      round(100 * r2, 1), "% of the variability in ", outcome, "."
-    )
+      round(100 * r2, 1), "% of the variability in ", outcome, ".")
   })
   output$downloadData <- downloadHandler(
     filename = function() "filtered_sleep_data.csv",
