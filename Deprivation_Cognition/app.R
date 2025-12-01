@@ -161,9 +161,16 @@ ui <- fluidPage(theme = my_theme,
         card(
         card_header("Summary statistics"),
         DTOutput("summaryTable")),
-        card(
-        card_header("Key distributions"),
-        plotOutput("summaryBoxPlot", height = 320)))
+        card(card_header(div("Key distributions", tags$span(
+        icon("circle-info"),
+        style = "margin-left: 6px; color: #6c757d; cursor: help;",
+        title = "These boxplots use standardized values (z-scores), so all three variables are shown on the same scale. A z-score tells you how many standard deviations a value is above or below the sample mean."
+                ))
+            ),
+            p(class = "help-note",
+              "These boxplots show standardized values (z-scores), so Sleep Hours, Sleep Quality Score, and PVT Reaction Time can be compared on the same scale despite having different units."
+            ),
+            plotOutput("summaryBoxPlot", height = 320))
                       ),
       nav_panel("Sleep → Cognition", icon = icon("brain"),
         p(
