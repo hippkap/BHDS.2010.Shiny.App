@@ -430,38 +430,44 @@ Try widening the sleep or age range, or re-select both genders."
   })
   output$caffeinePlot <- plotly::renderPlotly({
     df <- filtered_data()
-    validate(need(nrow(df) > 0,
-  "No participants match the current filters. Try widening the ranges above."))
+    validate(need(
+      nrow(df) > 0,
+ "No participants match the current filters. Try widening the ranges above."
+    ))
     sleep_range <- range(df$Sleep_Hours, na.rm = TRUE)
     if ("Participant_ID" %in% names(df)) {
-      df <- df %>% mutate(
-        Tooltip = paste0(
-          "ID: ", Participant_ID,
-          "<br>Caffeine intake: ", Caffeine_Intake,
-          "<br>Sleep hours: ", round(Sleep_Hours, 2),
-          "<br>Gender: ", Gender))
-    } else {
-      df <- df %>% mutate(
-        Tooltip = paste0(
-          "Caffeine intake: ", Caffeine_Intake,
-          "<br>Sleep hours: ", round(Sleep_Hours, 2),
-          "<br>Gender: ", Gender))
+      df <- df %>% mutate(Tooltip = paste0(
+            "ID: ", Participant_ID,
+            "<br>Caffeine intake: ", Caffeine_Intake,
+            "<br>Sleep hours: ", round(Sleep_Hours, 2),
+            "<br>Gender: ", Gender))
+    } else {df <- df %>% mutate(Tooltip = paste0(
+            "Caffeine intake: ", Caffeine_Intake,
+            "<br>Sleep hours: ", round(Sleep_Hours, 2),
+            "<br>Gender: ", Gender))
     }
-    p <- ggplot(df, aes(
-      x     = Caffeine_Intake,
-      y     = Sleep_Hours,
-      color = Gender,
-      text  = Tooltip)) +
-      geom_point(alpha = 0.8, size = 2.2) +
-      geom_smooth(method = "lm", se = TRUE, size = 0.7) +
+    p <- ggplot(df,aes(
+        x     = Caffeine_Intake,
+        y     = Sleep_Hours,
+        color = Gender,
+        text  = Tooltip)
+    ) + geom_point(alpha = 0.8, size = 2.2) +
+      geom_smooth(
+        aes(group = 1),
+        method = "lm",
+        se     = TRUE,
+        color  = "#2C7FB8",
+        fill   = "#2C7FB8",
+        alpha  = 0.15,
+        size   = 1
+      ) +
       scale_color_manual(values = gender_cols) +
-      coord_cartesian(ylim = sleep_range) +   # now uses the local object
+      coord_cartesian(ylim = sleep_range) +
       labs(
-        x = "Caffeine intake (0–5 units per day)",
-        y = "Sleep hours per night",
-        color = "Gender") +
-      theme_minimal(base_size = 12) +
-      theme(legend.position = "top")
+        x     = "Caffeine intake (0–5 units per day)",
+        y     = "Sleep hours per night",
+        color = "Gender"
+      ) + theme_minimal(base_size = 12) + theme(legend.position = "top")
     ggplotly(p, tooltip = "text")
   })
   output$caffeineSummaryText <- renderText({
@@ -481,40 +487,45 @@ Try widening the sleep or age range, or re-select both genders."
       round(r, 2), "). That is, higher caffeine tends to be linked with ",
       direction, " sleep.")
   })
-  output$stressPlot <- plotly::renderPlotly({
-    df <- filtered_data()
+output$stressPlot <- plotly::renderPlotly({df <- filtered_data()
     validate(need(nrow(df) > 0,
-  "No participants match the current filters. Try widening the ranges above."))
+"No participants match the current filters. Try widening the ranges above."))
     sleep_range <- range(df$Sleep_Hours, na.rm = TRUE)
     if ("Participant_ID" %in% names(df)) {
-      df <- df %>% mutate(
-        Tooltip = paste0(
-          "ID: ", Participant_ID,
-          "<br>Stress level: ", Stress_Level,
-          "<br>Sleep hours: ", round(Sleep_Hours, 2),
-          "<br>Gender: ", Gender))
+      df <- df %>%
+        mutate(Tooltip = paste0(
+            "ID: ", Participant_ID,
+            "<br>Stress level: ", Stress_Level,
+            "<br>Sleep hours: ", round(Sleep_Hours, 2),
+            "<br>Gender: ", Gender))
     } else {df <- df %>% mutate(Tooltip = paste0(
-          "Stress level: ", Stress_Level,
-          "<br>Sleep hours: ", round(Sleep_Hours, 2),
-          "<br>Gender: ", Gender
-        )
-      )
+            "Stress level: ", Stress_Level,
+            "<br>Sleep hours: ", round(Sleep_Hours, 2),
+            "<br>Gender: ", Gender))
     }
-    p <- ggplot(df, aes(
-      x     = Stress_Level,
-      y     = Sleep_Hours,
-      color = Gender,
-      text  = Tooltip)) +
-      geom_point(alpha = 0.8, size = 2.2) +
-      geom_smooth(method = "lm", se = TRUE, size = 0.7) +
+    p <- ggplot(df,aes(
+        x     = Stress_Level,
+        y     = Sleep_Hours,
+        color = Gender,
+        text  = Tooltip)
+    ) +
+      geom_point(alpha = 0.8, size = 2.2) + geom_smooth(
+        aes(group = 1),
+        method = "lm",
+        se     = TRUE,
+        color  = "#2C7FB8",
+        fill   = "#2C7FB8",
+        alpha  = 0.15,
+        size   = 1
+      ) +
       scale_color_manual(values = gender_cols) +
       coord_cartesian(ylim = sleep_range) +
       labs(
-        x = "Stress level (0–40 scale)",
-        y = "Sleep hours per night",
-  color = "Gender") + theme_minimal(base_size = 12) +
-  theme(legend.position = "top")
-  ggplotly(p, tooltip = "text")
+        x     = "Stress level (0–40 scale)",
+        y     = "Sleep hours per night",
+        color = "Gender"
+      ) + theme_minimal(base_size = 12) + theme(legend.position = "top")
+    ggplotly(p, tooltip = "text")
   })
   output$stressSummaryText <- renderText({df <- filtered_data()
     req(nrow(df) > 5)
