@@ -53,7 +53,6 @@ ui <- fluidPage(
     "))
   ),
   titlePanel("Sleep Deprivation & Cognitive Performance Explorer"),
-  
   sidebarLayout(
     sidebarPanel(
       class = "sidebar",
@@ -152,15 +151,16 @@ ui <- fluidPage(
     ),
     mainPanel(
       navset_card_tab(
-        nav_panel(
-          "Data", icon = icon("table"),
-          card(
-            card_header(textOutput("nText")),
-            DTOutput("dataTable")
-          )
+  nav_panel("Data", icon = icon("table"),
+      card(card_header(textOutput("nText")),
+      p(class = "help-note",
+"Each row is one participant from a 2024 study of 60 adults in the Middle East. ",
+ "The data include sleep duration, sleep quality, daytime sleepiness, cognitive ",
+  "tests (reaction time, working memory, emotion regulation), and lifestyle factors ",
+  "like caffeine, physical activity, and stress."),
+  DTOutput("dataTable"))
         ),
-        nav_panel(
-          "Summary", icon = icon("chart-bar"),
+  nav_panel("Summary", icon = icon("chart-bar"),
           layout_column_wrap(
             width = 1/2,
             card(
@@ -178,7 +178,7 @@ ui <- fluidPage(
         "These boxplots show standardized values (z-scores), so Sleep Hours, Sleep Quality Score, and PVT Reaction Time can be compared on the same scale despite having different units."
               ),
       plotOutput("summaryBoxPlot", height = 320)))),
-        nav_panel("Sleep → Cognition", icon = icon("brain"),
+  nav_panel("Sleep → Cognition", icon = icon("brain"),
           p(class = "help-note",
             "How does sleep duration, quality, or daytime sleepiness relate to each cognitive outcome?"
           ),
@@ -190,7 +190,7 @@ ui <- fluidPage(
             )
           )
         ),
-      nav_panel("Lifestyle", icon = icon("mug-hot"),
+   nav_panel("Lifestyle", icon = icon("mug-hot"),
         p(class = "help-note",
         "Do caffeine and stress appear to be associated with sleep hours?"
         ),
@@ -208,8 +208,7 @@ ui <- fluidPage(
       plotlyOutput("stressPlot", height = 320), tags$br(),
       textOutput("stressSummaryText")))
       ),
-        nav_panel(
-          "Model", icon = icon("calculator"),
+    nav_panel("Model", icon = icon("calculator"),
           layout_column_wrap(
             width = 1,
             card(card_header("Linear regression"),
@@ -257,13 +256,21 @@ server <- function(input, output, session) {
     paste0("Filtered sample size: n = ", nrow(filtered_data()))
   })
   output$dataTable <- renderDT({
-    filtered_data()
-  }, options = list(pageLength = 8, scrollX = TRUE))
+    df <- filtered_data()
+    if (nrow(df) == 0) {empty_msg <- data.frame(
+        Message = "No participants match the current filters. 
+Try widening the sleep or age range, or re-select both genders."
+      )
+  return(datatable(empty_msg, options = list(dom = "t"), rownames = FALSE))}
+    datatable(df, options = list(pageLength = 8, scrollX = TRUE))
+  })
   output$summaryTable <- DT::renderDT({
     df <- filtered_data()
-    req(nrow(df) > 0)
+    validate(need(nrow(df) > 0,
+  "No participants match the current filters. Try widening the ranges above."))
     num_df <- df %>% dplyr::select(where(is.numeric))
-    req(ncol(num_df) > 0)
+    validate(need(ncol(num_df) > 0, 
+  "No numeric variables available in the current filter."))
     stat_names <- c("Min","Q1","Median","Mean","SD","Variance","Q3","Max")
     summary_tbl <- num_df %>%
       summarise(across(
@@ -321,7 +328,8 @@ server <- function(input, output, session) {
   })
   output$summaryBoxPlot <- renderPlot({
     df <- filtered_data()
-    req(nrow(df) > 0)
+    validate(need(nrow(df) > 0,
+  "No participants match the current filters. Try widening the ranges above."))
   df_long <- df %>%
       dplyr::select(
         `PVT Reaction Time`   = PVT_Reaction_Time,
@@ -354,7 +362,8 @@ server <- function(input, output, session) {
   gender_cols <- c("Female" = "#E07A9B", "Male" = "#4C9FCD")
   output$histPlot <- renderPlot({
     df <- filtered_data()
-    req(nrow(df) > 0)
+    validate(need(nrow(df) > 0,
+  "No participants match the current filters. Try widening the ranges above."))
     ggplot(df, aes_string(x = input$histVar)) +
       geom_histogram(
         bins = 25,
@@ -378,7 +387,8 @@ server <- function(input, output, session) {
       )})
   output$scatterPlot <- plotly::renderPlotly({
     df <- filtered_data()
-    req(nrow(df) > 0)
+    validate(need(nrow(df) > 0,
+  "No participants match the current filters. Try widening the ranges above."))
     if ("Participant_ID" %in% names(df)) {
       df <- df %>%
         mutate(
@@ -409,35 +419,38 @@ server <- function(input, output, session) {
   })
   output$caffeinePlot <- plotly::renderPlotly({
     df <- filtered_data()
-    req(nrow(df) > 0)
+    validate(need(nrow(df) > 0,
+  "No participants match the current filters. Try widening the ranges above."))
     sleep_range <- range(df$Sleep_Hours, na.rm = TRUE)
     if ("Participant_ID" %in% names(df)) {
       df <- df %>% mutate(
-          Tooltip = paste0(
-            "ID: ", Participant_ID,
-            "<br>Caffeine intake: ", Caffeine_Intake,
-            "<br>Sleep hours: ", round(Sleep_Hours, 2),
-            "<br>Gender: ", Gender))
-    } else {df <- df %>%
-        mutate(Tooltip = paste0(
-            "Caffeine intake: ", Caffeine_Intake,
-            "<br>Sleep hours: ", round(Sleep_Hours, 2),
-            "<br>Gender: ", Gender))
+        Tooltip = paste0(
+          "ID: ", Participant_ID,
+          "<br>Caffeine intake: ", Caffeine_Intake,
+          "<br>Sleep hours: ", round(Sleep_Hours, 2),
+          "<br>Gender: ", Gender))
+    } else {
+      df <- df %>% mutate(
+        Tooltip = paste0(
+          "Caffeine intake: ", Caffeine_Intake,
+          "<br>Sleep hours: ", round(Sleep_Hours, 2),
+          "<br>Gender: ", Gender))
     }
-    p <- ggplot(df,aes(
-        x     = Caffeine_Intake,
-        y     = Sleep_Hours,
-        color = Gender,
-        text  = Tooltip)) +
-    geom_point(alpha = 0.8, size = 2.2) +
+    p <- ggplot(df, aes(
+      x     = Caffeine_Intake,
+      y     = Sleep_Hours,
+      color = Gender,
+      text  = Tooltip)) +
+      geom_point(alpha = 0.8, size = 2.2) +
       geom_smooth(method = "lm", se = TRUE, size = 0.7) +
       scale_color_manual(values = gender_cols) +
-      coord_cartesian(ylim = sleep_range) +
+      coord_cartesian(ylim = sleep_range) +   # now uses the local object
       labs(
         x = "Caffeine intake (0–5 units per day)",
         y = "Sleep hours per night",
-        color = "Gender"
-      ) + theme_minimal(base_size = 12) + theme(legend.position = "top")
+        color = "Gender") +
+      theme_minimal(base_size = 12) +
+      theme(legend.position = "top")
     ggplotly(p, tooltip = "text")
   })
   output$caffeineSummaryText <- renderText({
@@ -459,34 +472,38 @@ server <- function(input, output, session) {
   })
   output$stressPlot <- plotly::renderPlotly({
     df <- filtered_data()
-    req(nrow(df) > 0)
+    validate(need(nrow(df) > 0,
+  "No participants match the current filters. Try widening the ranges above."))
     sleep_range <- range(df$Sleep_Hours, na.rm = TRUE)
     if ("Participant_ID" %in% names(df)) {
-      df <- df %>%
-        mutate(Tooltip = paste0(
-            "ID: ", Participant_ID,
-            "<br>Stress level: ", Stress_Level,
-            "<br>Sleep hours: ", round(Sleep_Hours, 2),
-            "<br>Gender: ", Gender))
-    } else {df <- df %>%
-        mutate(Tooltip = paste0(
-            "Stress level: ", Stress_Level,
-            "<br>Sleep hours: ", round(Sleep_Hours, 2),
-            "<br>Gender: ", Gender))}
-    p <- ggplot(df,aes(
-        x     = Stress_Level,
-        y     = Sleep_Hours,
-        color = Gender,
-        text  = Tooltip)
-    ) +
+      df <- df %>% mutate(
+        Tooltip = paste0(
+          "ID: ", Participant_ID,
+          "<br>Stress level: ", Stress_Level,
+          "<br>Sleep hours: ", round(Sleep_Hours, 2),
+          "<br>Gender: ", Gender))
+    } else {df <- df %>% mutate(Tooltip = paste0(
+          "Stress level: ", Stress_Level,
+          "<br>Sleep hours: ", round(Sleep_Hours, 2),
+          "<br>Gender: ", Gender
+        )
+      )
+    }
+    p <- ggplot(df, aes(
+      x     = Stress_Level,
+      y     = Sleep_Hours,
+      color = Gender,
+      text  = Tooltip)) +
       geom_point(alpha = 0.8, size = 2.2) +
       geom_smooth(method = "lm", se = TRUE, size = 0.7) +
       scale_color_manual(values = gender_cols) +
       coord_cartesian(ylim = sleep_range) +
-      labs(x = "Stress level (0–40 scale)", y = "Sleep hours per night",
-        color = "Gender") + theme_minimal(base_size = 12) +
-      theme(legend.position = "top")
-    ggplotly(p, tooltip = "text")
+      labs(
+        x = "Stress level (0–40 scale)",
+        y = "Sleep hours per night",
+  color = "Gender") + theme_minimal(base_size = 12) +
+  theme(legend.position = "top")
+  ggplotly(p, tooltip = "text")
   })
   output$stressSummaryText <- renderText({df <- filtered_data()
     req(nrow(df) > 5)
@@ -517,6 +534,9 @@ server <- function(input, output, session) {
     summary(model)
   })
   output$residPlot <- renderPlot({
+    df <- filtered_data()
+    validate(need(nrow(df) > 0,
+  "Not enough participants to fit a model. Try widening filters."))
   model <- current_model()
   df_resid <- data.frame(
     Fitted    = fitted(model),
