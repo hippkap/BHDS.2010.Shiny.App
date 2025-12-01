@@ -303,7 +303,7 @@ server <- function(input, output, session) {
         pageLength = 8,
         scrollX = TRUE),rownames = FALSE)
   })
-  output$summaryBoxplot <- renderPlot({
+  output$summaryBoxPlot <- renderPlot({
     df <- filtered_data()
     req(nrow(df) > 0)
     df_long <- df %>% dplyr::select("Sleep Hours"= Sleep_Hours,
@@ -343,8 +343,6 @@ server <- function(input, output, session) {
         plot.title = element_text(face = "bold", size = 16),
         legend.position = "none"
       )})
-  
-  
   output$scatterPlot <- plotly::renderPlotly({
     df <- filtered_data()
     req(nrow(df) > 0)
@@ -376,8 +374,6 @@ server <- function(input, output, session) {
       theme(legend.position = "right")
     ggplotly(p, tooltip = "text")
   })
-  
-  
   output$caffeinePlot <- plotly::renderPlotly({
     df <- filtered_data()
     req(nrow(df) > 0)
@@ -398,8 +394,6 @@ server <- function(input, output, session) {
     theme_minimal(base_size = 12)
   ggplotly(p, tooltip = "text")
   })
-  
-  
   output$stressPlot <- plotly::renderPlotly({
     df <- filtered_data()
     req(nrow(df) > 0)
