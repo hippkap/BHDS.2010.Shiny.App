@@ -3,7 +3,7 @@
 #install.packages("ggplot2")
 #install.packages("dplyr")
 #install.packages("bslib")
-#install.packages(tidyr)
+#install.packages("tidyr")
 library(shiny)
 library(DT)
 library(ggplot2)
