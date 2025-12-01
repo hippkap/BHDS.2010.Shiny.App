@@ -311,11 +311,11 @@ server <- function(input, output, session) {
     outcome <- input$outcomeVar
     r2 <- sm$r.squared
     if (is.na(coef_sleep)) {
-      return("Interpretation: The coefficient for Sleep_Hours could not be estimated with the current filters and covariates.")
+return("Interpretation: The coefficient for Sleep_Hours could not be estimated with the current filters and covariates.")
     }
     direction <- ifelse(coef_sleep > 0, "increase", "decrease")
     paste0(
-      "Interpretation: For each additional hour of sleep, the model predicts a ",
+    "Interpretation: For each additional hour of sleep, the model predicts a ",
       round(abs(coef_sleep), 2), " unit ", direction, " in ", outcome,
       " on average, holding the selected covariates constant. ",
       "In this filtered sample, the model explains about ",
