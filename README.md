@@ -248,13 +248,13 @@ Tabs and user interaction:
     and y-axis values, and gender, supporting rich, case-level exploration.
 4.	Lifestyle tab
   o	Contains two matched regression views:
-    	Caffeine vs Sleep: sleep hours regressed on caffeine intake.
-    	Stress vs Sleep: sleep hours regressed on stress level.
+    •	Caffeine vs Sleep: sleep hours regressed on caffeine intake.
+    •	Stress vs Sleep: sleep hours regressed on stress level.
   o	Both plots:
-    	Use ggplot to draw gender-colored points and an overlaid linear regression
+    •	Use ggplot to draw gender-colored points and an overlaid linear regression
       line with 95% confidence band.
-    	Anchor the y-axis to a shared sleep_range so the scales are comparable.
-    	Are converted to interactive plotly objects with tooltips showing ID, 
+    •	Anchor the y-axis to a shared sleep_range so the scales are comparable.
+    •	Are converted to interactive plotly objects with tooltips showing ID, 
       exposure, sleep hours, and gender.
   o	Under each plot, a narrative summary (caffeineSummaryText, 
     stressSummaryText) is dynamically computed, interpreting the regression 
@@ -268,8 +268,8 @@ Tabs and user interaction:
     activity, stress level). Sleep_Hours is always included as the primary 
     predictor.
   o	The left card displays both:
-    	the exact model formula and full summary(lm(...)) output; and
-    	a prose interpretation of the sleep-duration coefficient and R-squared, 
+    •	the exact model formula and full summary(lm(...)) output; and
+    •	a prose interpretation of the sleep-duration coefficient and R-squared, 
       updated in real time as filters and covariates change.
   o	The right card shows a Residuals vs Fitted plot (residPlot), letting users 
     visually assess linearity and homoscedasticity.
