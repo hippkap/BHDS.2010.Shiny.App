@@ -111,7 +111,8 @@ ui <- fluidPage(
         margin-top: -6px;
         margin-bottom: 12px;}
     "))
-  ), # Now we include the title bar at the top of the app window.
+  ), 
+  # Now we include the title bar at the top of the app window.
   titlePanel("Sleep Deprivation & Cognitive Performance Explorer"), 
   # Now we split the page into a left sidebar (filters and controls) and a main
   # panel (tabs with data/plots/models). In the sidebar panel, we will have
@@ -154,7 +155,8 @@ ui <- fluidPage(
         choices  = levels(sleep_df$Gender),
         selected = levels(sleep_df$Gender),
         inline   = TRUE
-      ), # To facilitate rapid re-assessment of variables, the inclusion of a 
+      ), 
+    # To facilitate rapid re-assessment of variables, the inclusion of a 
     # Reset button is critical for returning all filters (sleep, age, gender)
     # back to their full-range defaults.
       actionButton("resetBtn", "Reset filters", icon = icon("rotate-left")),
@@ -358,6 +360,7 @@ ui <- fluidPage(
     )
   )
 )
+
 # The Lifestyle tab connects behavioral exposures (caffeine, stress) with sleep
 # duration and provides a concise, automatically-generated interpretation of 
 # the regression slope and correlation. The Model tab elevates the app from
