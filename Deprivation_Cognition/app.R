@@ -365,7 +365,7 @@ ui <- fluidPage(
 # duration and provides a concise, automatically-generated interpretation of 
 # the regression slope and correlation. The Model tab elevates the app from
 # visualization to formal modeling, allowing users to specify multivariable
-# linear regression models and insepct both textual summaries and diagnostic
+# linear regression models and inspect both textual summaries and diagnostic
 # plots. 
 
 # Moving on to the creation of the server, the server logic is as follows:
@@ -374,7 +374,7 @@ ui <- fluidPage(
 # to a UI element with the same ID. We can first consider the Reset button,
 # which restores filters to their full ranges. observeEvent() listens for a
 # change in input$resetBtn. When the button is clicked, it executes the code
-# inside. We will want to reset sleepRange to the mim and max in the full 
+# inside. We will want to reset sleepRange to the min and max in the full 
 # dataset, and reset ageRange similarly. We will also want to be able to 
 # reset genderFilter to include all levels. 
 
@@ -387,6 +387,10 @@ server <- function(input, output, session) {
 # Shiny automatically tracks dependencies. Whenever any input used inside a 
 # reactive expression or render block changes, only the affected outputs will 
 # be recomputed.
+# observeEvent() registers an event listener on input$resetBtn. When the button
+# is clicked, Shiny will invalidate this observer and re-run the enclosed code,
+# restoring each input to its original full-range/all-levels state via update
+# helpers. 
 observeEvent(input$resetBtn, {
     updateSliderInput(session, "sleepRange",
                       value = c(min(sleep_df$Sleep_Hours, na.rm=TRUE),
@@ -433,7 +437,8 @@ Try widening the sleep or age range, or re-select both genders."
   # SD, Variance, Q3, Max, and reshapes into a "tidy" summary table. It will
   # also apply validate(need()) to fail gracefully if filters would otherwise
   # produce errors (validate + need will mean that if condition is FALSE, 
-  # the output is replaced by the message instead of throwing an error). 
+  # the output is replaced by the message instead of throwing an error). We can
+  # consider this as defensive programming, to prevent breaking the app. 
   output$summaryTable <- DT::renderDT({
     df <- filtered_data()
     validate(need(nrow(df) > 0,
@@ -445,7 +450,11 @@ Try widening the sleep or age range, or re-select both genders."
   # We want to summarize all numeric columns across the filtered dataset.
   # across() applies each function (Min, Q1, etc.) to every numeric variable. 
     summary_tbl <- num_df %>%
-      summarise(across(
+      summarise(across( 
+  # We compute all statistics in a wide format (one row, many *_Statistic 
+  # columns), then pivot_longer() + pivot_wider() to arrive at a tidy table
+  # where each row corresponds to a variable and each column to a chosen
+  #summary statistic. 
         everything(),
         list(
           Min      = ~min(.x, na.rm = TRUE),
@@ -515,7 +524,11 @@ Try widening the sleep or age range, or re-select both genders."
         `PVT Reaction Time`   = PVT_Reaction_Time,
         `Sleep Hours`         = Sleep_Hours,
         `Sleep Quality Score` = Sleep_Quality_Score) %>%
-    # to standardize each variable (z = (x-mean)/SD)
+    # to standardize each variable (z = (x-mean)/SD);
+    # scale() returns standardized values; because it returns a matrix, we 
+    # subset [ ,1] to coerce back to a numeric vector. The ticks in the column
+    # names ('PVT Reaction Time') allow us to use human-readable labels with 
+    # spaces while still referencing them appropriately.
       mutate(
         `PVT Reaction Time`   = scale(`PVT Reaction Time`)[, 1],
         `Sleep Hours`         = scale(`Sleep Hours`)[, 1],
@@ -546,6 +559,9 @@ Try widening the sleep or age range, or re-select both genders."
     df <- filtered_data()
     validate(need(nrow(df) > 0,
   "No participants match the current filters. Try widening the ranges above."))
+# aes_string() will be used here, rather than aes() so that we can pass the 
+# selected variable name (input$histVar, a character string) directly into 
+# ggplot for dynamic aesthetics.
     ggplot(df, aes_string(x = input$histVar)) +
       geom_histogram(
         bins = 25,
@@ -598,7 +614,9 @@ Try widening the sleep or age range, or re-select both genders."
         text  = Tooltip)
     ) +
       geom_point(size = 2.2, alpha = 0.85) +
-      geom_smooth(
+      geom_smooth( 
+# group = 1 forces a single global regression line across all points, rather
+# than separate lines per Gender level. 
         aes(group = 1),
         method = "lm",
         se     = FALSE,
@@ -612,12 +630,16 @@ Try widening the sleep or age range, or re-select both genders."
         color = "Gender"
       ) +
       theme_minimal(base_size = 12) + theme(legend.position = "right")
+# ggplotly() converts the static ggplot into an interactive plotly object, 
+# preserving our aesthetics and exposing the Tooltip field via hover. 
     ggplotly(p, tooltip = "text")
   })
  # The Caffeine vs Sleep (in the Lifestyle tab) will feature a scatter-plot with 
  # a regression line and a 95% Confidence Interval band, and will be colored by
  # Gender, in addition to containing interactive tooltips. We will also want to
- # capture the sleep-hours range so both Lifestyle plots use the same y-axis.
+ # capture the sleep-hours range so both Lifestyle plots use the same y-axis, 
+ # making vertical comparisons between caffeine and stress related plots more
+ # interpretable.
   output$caffeinePlot <- plotly::renderPlotly({
     df <- filtered_data()
     validate(need(
@@ -783,7 +805,10 @@ output$stressPlot <- plotly::renderPlotly({df <- filtered_data()
     outcome    <- input$outcomeVar
     covariates <- c("Sleep_Hours", input$covariates)
     model_spec <- paste(outcome, "~", paste(covariates, collapse = " + "))
-    r2 <- sm$r.squared
+    r2 <- sm$r.squared 
+# sm$r.squared returns the proportion of variance explained by the 
+# model and we will convert this into a percentage to make the 
+# interpretation more intuitive.
     if (is.na(coef_sleep)) {
       return(paste0(
           "Current model: ", model_spec, ". ",
