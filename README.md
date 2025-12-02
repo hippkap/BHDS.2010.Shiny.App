@@ -177,9 +177,7 @@ Jona then moved on to providing commentary for the server, in addition to
 conclusive commentary on the findings. 
 16. After all branches were merged, both collaborators pulled the latest main 
 branch to ensure all local copies were synchronized with the repository.
-17. With every section complete and all warning messages being suppressed,
-the app script was knit into a finalized, reproducible pdf report (submitted 
-in tandem with the app-theory-and-creation report). 
+
 NOTE: Other cosmetic and functional polishing was committed several times over 
 the course of the app creation (for things like tweaking helper texts and 
 refining color choices and hover tooltips), and these steps may not be fully 
