@@ -5,9 +5,32 @@
 # founded within Kaggle; demonstrate proficiency in reactive programming
 # principles and biostatistical reasoning. 
 
+# Directory Logistics:
 # The working directory at hand is the BHDS.2010.Shiny.App repository, 
 # within GitHub. From Kaggle, the data-set was downloaded as a .csv file, 
 # and uploaded into the repository, with name "sleep_deprivation_dataset.csv".
+
+# Overarching App Summary:
+# Our Sleep Deprivation & Cognitive Performance Explorer loads a 2024 dataset 
+# of 60 adults from the Middle East, with detailed sleep, cognitive, emotional, 
+# lifestyle, and demographic data. Our app uses a reactive filter (sleep hours, 
+# age, gender) to define a current analytic sample that drives all tables, 
+# plots, and models.
+# The app will provide five main views:
+# Data: inspect the filtered rows in a searchable table.
+# Summary: numeric summaries and z-score boxplots of key measures.
+# Sleep → Cognition: interactive scatterplots linking sleep metrics to cognitive
+# outcomes, with regression lines overlaid.
+# Lifestyle: interactive regression views of caffeine and stress versus sleep 
+# duration, with hover tooltips and textual summaries.
+# Model: a flexible linear regression engine with selectable covariates, model 
+# diagnostics, and a plain-language interpretation.
+# Our app will also allow users to export the filtered dataset, for downstream
+# analysis. It is overall designed to be an interactive teaching and 
+# exploration tool for understanding how sleep, lifestyle, and cognition 
+# interrelate, without requiring any prior coding experience.
+
+###############################################################################
 # We will begin by installing and loading the required packages. The libraries
 # below provide the core functionality for the Shiny app: (shiny) is the web
 # app framework, (DT) allows for the building of interactive tables, (ggplot2) 
@@ -342,8 +365,16 @@ ui <- fluidPage(
 # linear regression models and insepct both textual summaries and diagnostic
 # plots. 
 
+# Moving on to the creation of the server, the server logic is as follows:
+# it defines how user inputs are translated into filtered data, tables, plots
+# regression models, and textual summaries, and every output$... is linked
+# to a UI element with the same ID. We can first consider the Reset button,
+# which restores filters to their full ranges. observeEvent() listens for a
+# change in input$resetBtn. When the button is clicked, it executes the code
+# inside. We will want to reset sleepRange to the mim and max in the full 
+# dataset, and reset ageRange similarly. We will also want to be able to 
+# reset genderFilter to include all levels. 
 
-# Create Server:
 server <- function(input, output, session) {
   observeEvent(input$resetBtn, {
     updateSliderInput(session, "sleepRange",
@@ -355,6 +386,16 @@ server <- function(input, output, session) {
     updateCheckboxGroupInput(session, "genderFilter",
                              selected = levels(sleep_df$Gender))
   })
+  # For the reactive filtered data-set: reactive() creates a reactive expression
+  # such that whenever any of sleepRange, ageRange, or genderFilter changes, 
+  # this code is re-run and any dependent outputs update automatically. 
+  # filtered_data() represents the current analytical sample, which is a subset
+  # of the 60 participants restricted by the user's sleep, age, and gender 
+  # choices. renderText() will help us build a character string to display
+  # in the UI. renderDT() returns a DT datatable object (here we also handle
+  # the edge case of zero rows with ease). We can also be mindful to include
+  # if(nrow(df)==0){empty_msg <-data.frame(Message = ...) for cases where, 
+  # if no rows match the filters, a friendly message appears instead of errors.
   filtered_data <- reactive({
     sleep_df %>%
       filter(
@@ -377,6 +418,11 @@ Try widening the sleep or age range, or re-select both genders."
   return(datatable(empty_msg, options = list(dom = "t"), rownames = FALSE))}
     datatable(df, options = list(pageLength = 8, scrollX = TRUE))
   })
+  # The Summary tab subsets numeric variables, computes Min, Q1, Median, Mean,
+  # SD, Variance, Q3, Max, and reshapes into a "tidy" summary table. It will
+  # also apply validate(need()) to fail gracefully if filters would otherwise
+  # produce errors (validate + need will mean that if condition is FALSE, 
+  # the output is replaced by the message instead of throwing an error). 
   output$summaryTable <- DT::renderDT({
     df <- filtered_data()
     validate(need(nrow(df) > 0,
@@ -385,6 +431,8 @@ Try widening the sleep or age range, or re-select both genders."
     validate(need(ncol(num_df) > 0, 
   "No numeric variables available in the current filter."))
     stat_names <- c("Min","Q1","Median","Mean","SD","Variance","Q3","Max")
+  # We want to summarize all numeric columns across the filtered dataset.
+  # across() applies each function (Min, Q1, etc.) to every numeric variable. 
     summary_tbl <- num_df %>%
       summarise(across(
         everything(),
@@ -400,12 +448,14 @@ Try widening the sleep or age range, or re-select both genders."
         ),
         .names = "{.col}_{.fn}"
       )) %>%
+   # Reshape wide to long, to separate "Variable" and "Statistic"
       tidyr::pivot_longer(
         cols = everything(),
         names_to   = c("Variable", "Statistic"),
         # everything before the last "_" is the variable name
         names_pattern = "^(.*)_(Min|Q1|Median|Mean|SD|Variance|Q3|Max)$"
       ) %>%
+    # Reshape long to wide, so that each statistic becomes a column 
       tidyr::pivot_wider(
         names_from  = Statistic,
         values_from = value)
@@ -423,9 +473,12 @@ Try widening the sleep or age range, or re-select both genders."
       Stress_Level              = "Stress Level",
       BMI                       = "BMI")
     summary_tbl <- summary_tbl %>%
-      arrange(Variable)
+      arrange(Variable) # to sort rows alphabetically, by variable label 
     summary_tbl <- summary_tbl %>%
       dplyr::mutate(across(where(is.numeric), ~round(.x, 2)))
+    # to round all numeric summaries to 2 decimal places for readability. 
+    # We can also respect the user's choice of which statistic to display, 
+    # and if no stats are selected, we can show only the variable names.
     selected_stats <- input$summaryStats
     if (is.null(selected_stats) || length(selected_stats) == 0) {
       summary_tbl <- summary_tbl %>% dplyr::select(Variable)
@@ -439,6 +492,9 @@ Try widening the sleep or age range, or re-select both genders."
         pageLength = 8,
         scrollX = TRUE),rownames = FALSE)
   })
+  # Z-score boxplots (in the Summary tab) help to standardize three key 
+  # variables within the filtered sample, and show them on a common scale
+  # (z-scores) for facilitated visual comparison. 
   output$summaryBoxPlot <- renderPlot({
     df <- filtered_data()
     validate(need(nrow(df) > 0,
@@ -448,10 +504,12 @@ Try widening the sleep or age range, or re-select both genders."
         `PVT Reaction Time`   = PVT_Reaction_Time,
         `Sleep Hours`         = Sleep_Hours,
         `Sleep Quality Score` = Sleep_Quality_Score) %>%
+    # to standardize each variable (z = (x-mean)/SD)
       mutate(
         `PVT Reaction Time`   = scale(`PVT Reaction Time`)[, 1],
         `Sleep Hours`         = scale(`Sleep Hours`)[, 1],
         `Sleep Quality Score` = scale(`Sleep Quality Score`)[, 1]) %>%
+    # convert from wide to long, for ggplot
       tidyr::pivot_longer(
         cols      = everything(),
         names_to  = "Measure",
@@ -498,6 +556,10 @@ Try widening the sleep or age range, or re-select both genders."
         plot.title = element_text(face = "bold", size = 16),
         legend.position = "none"
       )})
+  # The Sleep vs Cognitive scatter-plot in the Sleep -> Cognition tab will
+  # feature points colored by gender, a linear regression line overlaid 
+  # (geom_smooth(method = "lm")), and will be converted to interactive 
+  # plotly for tooltips.   
   output$scatterPlot <- plotly::renderPlotly({
     df <- filtered_data()
     validate(need(
@@ -541,6 +603,10 @@ Try widening the sleep or age range, or re-select both genders."
       theme_minimal(base_size = 12) + theme(legend.position = "right")
     ggplotly(p, tooltip = "text")
   })
+ # The Caffeine vs Sleep (in the Lifestyle tab) will feature a scatter-plot with 
+ # a regression line and a 95% Confidence Interval band, and will be colored by
+ # Gender, in addition to containing interactive tooltips. We will also want to
+ # capture the sleep-hours range so both Lifestyle plots use the same y-axis.
   output$caffeinePlot <- plotly::renderPlotly({
     df <- filtered_data()
     validate(need(
@@ -548,6 +614,7 @@ Try widening the sleep or age range, or re-select both genders."
  "No participants match the current filters. Try widening the ranges above."
     ))
     sleep_range <- range(df$Sleep_Hours, na.rm = TRUE)
+ # Tooltips with ID when available:
     if ("Participant_ID" %in% names(df)) {
       df <- df %>% mutate(Tooltip = paste0(
             "ID: ", Participant_ID,
@@ -568,7 +635,7 @@ Try widening the sleep or age range, or re-select both genders."
       geom_smooth(
         aes(group = 1),
         method = "lm",
-        se     = TRUE,
+        se     = TRUE, # to display 95% CI band with the regression line 
         color  = "#2C7FB8",
         fill   = "#2C7FB8",
         alpha  = 0.15,
@@ -583,12 +650,18 @@ Try widening the sleep or age range, or re-select both genders."
       ) + theme_minimal(base_size = 12) + theme(legend.position = "top")
     ggplotly(p, tooltip = "text")
   })
+  # We also want to provide a textual summary for the caffeine-sleep association
+  # req() will ensure that we have a minimal sample size. We also want to 
+  # include a message in the event that caffeine has no variation under filters
+  # chosen, as regression would be rendered meaningless. 
   output$caffeineSummaryText <- renderText({
     df <- filtered_data()
     req(nrow(df) > 5)
     if (length(unique(df$Caffeine_Intake)) < 2) {
       return("Summary: Not enough variation in caffeine intake in the current filters to summarize a trend.")
     }
+   # Simple linear regression is included, with a Pearson correlation between
+   # caffeine and sleep hours. 
     fit <- lm(Sleep_Hours ~ Caffeine_Intake, data = df)
     slope <- coef(fit)["Caffeine_Intake"]
     r <- suppressWarnings(cor(df$Caffeine_Intake, df$Sleep_Hours, 
@@ -640,6 +713,7 @@ output$stressPlot <- plotly::renderPlotly({df <- filtered_data()
       ) + theme_minimal(base_size = 12) + theme(legend.position = "top")
     ggplotly(p, tooltip = "text")
   })
+# We want to provide a textual summary for stress-sleep association.
   output$stressSummaryText <- renderText({df <- filtered_data()
     req(nrow(df) > 5)
     if (length(unique(df$Stress_Level)) < 2) {
@@ -655,6 +729,11 @@ output$stressPlot <- plotly::renderPlotly({df <- filtered_data()
       round(abs(slope), 2), " hours of ",
       direction, " sleep per night (r = ",
       round(r, 2), ").")})
+  # We will include a reactive linear model (within the Model tab), wherein 
+  # outcome is chosen via input$outcomeVar, and predictors always include
+  # Sleep_Hours plus user-selected covariates. We will want to require at least
+  # 10 observations before fitting a model. On the right hand side, we will
+  # want to see Sleep_Hours plus the selected covariates.
   current_model <- reactive({
     df <- filtered_data()
     req(nrow(df) >= 10)
@@ -668,6 +747,8 @@ output$stressPlot <- plotly::renderPlotly({df <- filtered_data()
     cat("\n\nModel Summary:\n")
     summary(model)
   })
+# We will also consider a Residual diagostics plot within the Model tab, where
+# we will observe Residuals vs Fitted, to assess linearity and homoscedasticity. 
   output$residPlot <- renderPlot({
     df <- filtered_data()
     validate(need(nrow(df) > 0,
@@ -680,6 +761,10 @@ output$stressPlot <- plotly::renderPlotly({df <- filtered_data()
     geom_hline(yintercept = 0, linetype = "dashed") + labs(x = "Fitted values",
       y = "Residuals") + theme_minimal(base_size = 12)
 })
+# A plain-language model summary will present itself within the Model tab, and
+# will describe the current model formula, interpret the Sleep_Hours 
+# coefficient, and report percent variance/R^2. We will want to include a 
+# message in the event that Sleep_Hours coefficient is unavailable. 
   output$modelSummaryText <- renderText({
     model <- current_model()
     sm    <- summary(model)
@@ -701,15 +786,55 @@ output$stressPlot <- plotly::renderPlotly({df <- filtered_data()
       "In this filtered sample, the model explains about ",
       round(100 * r2, 1), "% of the variability in ", outcome, ".")
   })
+# Download handler for filtered data (which allows users to export the current
+# subset as a CSV). 
   output$downloadData <- downloadHandler(
     filename = function() "filtered_sleep_data.csv",
     content = function(file) {
       write.csv(filtered_data(), file, row.names = FALSE)})
 }
 
-
-# Now to run the application:
+# Run the application:
 shinyApp(ui = ui, server = server)
+
+################################################################################
+# Summary and Future Conclusions:
+
+# The Sleep Deprivation & Cognitive Performance Explorer transforms a modest 
+# yet richly annotated dataset into an interactive analytic environment that 
+# is accessible to students, clinicians, and researchers alike. By combining 
+# reactive filtering, well-annotated summary tables, standardized boxplots, 
+# and interactive scatterplots with regression overlays, the app allows users 
+# to move fluidly from data inspection to hypothesis generation. The Model tab 
+# further elevates the tool into a didactic platform for regression modeling: 
+# users can specify outcomes and covariates, inspect the full linear model 
+# output, review residual diagnostics, and read a plain-language summary of 
+# how sleep duration relates to their chosen cognitive endpoint while adjusting 
+# for demographic and lifestyle factors. Collectively, the interface is 
+# structured to scaffold data literacy, encouraging users to ask targeted 
+# questions about how behavior, sleep, and cognition are intertwined in 
+# this sample.
+
+# Substantively, the dataset suggests several interpretable patterns, even 
+# within the constraints of a sample size of n = 60. Descriptively, longer 
+# sleep duration is associated with faster psychomotor vigilance reaction times, 
+# and higher sleep quality tends to co-occur with better emotion regulation 
+# scores, consistent with literature linking adequate and restorative sleep to 
+# improved cognitive and affective functioning. The Lifestyle tab highlights 
+# intriguing, potentially sex-differentiated trends in how caffeine and stress 
+# relate to sleep duration, while the Model tab demonstrates that, in this 
+# sample, linear models with sleep hours and a small set of covariates explain 
+# only a modest fraction of variance in cognitive outcomes, and often fail to 
+# reach conventional thresholds of statistical significance (likely reflecting 
+# both limited power and the multifactorial nature of cognition). Rather than 
+# offering definitive causal claims, the app is intentionally positioned as a 
+# hypothesis-generating/teaching tool, as it surfaces plausible relationships, 
+# makes underlying assumptions transparent, and points toward future work that 
+# could incorporate larger samples, additional sleep metrics, and richer 
+# covariate structures to more fully characterize how sleep and lifestyle shape 
+# cognitive performance.
+
+################################################################################
 # Uploading to Shiny.io
 # install.packages("rsconnect", type = "binary")
 # library(rsconnect)
