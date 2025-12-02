@@ -379,7 +379,15 @@ ui <- fluidPage(
 # reset genderFilter to include all levels. 
 
 server <- function(input, output, session) {
-  observeEvent(input$resetBtn, {
+# The server function defines the reactive graph for the app: 
+# Input: all user-controlled wigets from the UI (sliders, checkboxes, selects).
+# Output: all rendered tables/plots/text, each mapped to a UI placeholder by ID.
+# Session: low-level connection to the current browser session (used for
+# programmatic updates of inputs via update() functions).
+# Shiny automatically tracks dependencies. Whenever any input used inside a 
+# reactive expression or render block changes, only the affected outputs will 
+# be recomputed.
+observeEvent(input$resetBtn, {
     updateSliderInput(session, "sleepRange",
                       value = c(min(sleep_df$Sleep_Hours, na.rm=TRUE),
                                 max(sleep_df$Sleep_Hours, na.rm=TRUE)))
