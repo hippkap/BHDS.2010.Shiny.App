@@ -3,13 +3,14 @@
 
 **Project Purpose**:
 
-The purpose of this assignment is to design, implement, and deploy an 
-interactive Shiny web application that enables real-time exploration of a 
-sleep-deprivation dataset. The app integrates dynamic filtering, data 
-visualization, statistical summarization, and regression modeling into a unified
-analytic interface. Its overarching aim is to demonstrate proficiency in 
-reactive programming principles, data-driven UI/UX design, and biostatistical 
-reasoning through an applied digital tool.
+This repository contains the final Shiny application and documentation for the 
+BHDS 2010 (“Introduction to R for Biostatistics and Data Science”) course 
+project. The goal of this application is to create a fully interactive analytic 
+environment for exploring a 2024 sleep-deprivation dataset, integrating reactive
+filtering, exploratory visualization, distributional summaries, regression 
+modeling, and diagnostic assessment. The app demonstrates applied mastery of 
+reactive programming principles, tidyverse data wrangling, modern UI/UX design, 
+and communication of statistical reasoning through an intuitive web interface.
 
 Questions? For replication inquiries, methodological clarifications, or 
 troubleshooting assistance, collaborators may open an Issue in this repository 
@@ -78,7 +79,7 @@ uploaded the core project assets: the sleep_deprivation_dataset.csv and the
 initial scaffold of the README.md file.
 3. Separate from the main branch, within the “UI branch,” Jona provided the 
 preliminary code for the UI: installed the appropriate packages, started 
-building the UI by defining the fluidPage() layut, sidebar filters, and a basic 
+building the UI by defining the fluidPage() layout, sidebar filters, and a basic 
 tabset, which included the first version of the sliders, gender checkboxes, and 
 placeholder outputs for the Data, Summary and Sleep -> Cognition tabs. Changes 
 within this branch were committed, pushed into the hub, and a merge pull request
@@ -89,10 +90,10 @@ Jona’s UI, she implemented the base server logic: the filtered_data reactive
 expression, the output$dataTable and output$summaryTable render functions, and 
 the first versions of the histogram and scatterplot outputs. All of this was 
 completed within the “Server” branch. She then staged, committed and pushed 
-these updates into the hub, and merge pull request was successfully managed, 
-with commit aa9c189 merged into the main branch, and the Server branch deleted. 
-The shared app now had a minimal but functional end-to-end pipeline (inputs -> 
-reactive filter -> outputs). 
+these updates into the remote respository, and merge pull request was 
+successfully managed, with commit aa9c189 merged into the main branch, and the 
+Server branch deleted. The shared app now had a minimal but functional 
+end-to-end pipeline (inputs -> reactive filter -> outputs). 
 5.  Jona re-typed some of the code to adjust syntactical structure, because 
 Shiny Error: [object Object] message was showing, likely because of output ID 
 mismatch or DT output mismatch. 
@@ -296,6 +297,11 @@ The Shiny app reveals:
 
 These results are interactively discoverable, under any user-defined filtering 
 conditions.
+
+Collectively, these findings also illustrate several course themes, including 
+observational inference limits, individual variability, and the role of 
+effect size vs. significance.
+
 
 **Data Source and Course Relevance**:
 
