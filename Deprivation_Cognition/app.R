@@ -1,3 +1,20 @@
+###############################################################################
+# Assignment 4: Creation of a Shiny App
+# Objective: Design, implement and deploy an interactive Shiny web application
+# that allows for real-time exploration of a sleep-deprivation data-set, 
+# founded within Kaggle; demonstrate proficiency in reactive programming
+# principles and biostatistical reasoning. 
+
+# The working directory at hand is the BHDS.2010.Shiny.App repository, 
+# within GitHub. From Kaggle, the data-set was downloaded as a .csv file, 
+# and uploaded into the repository, with name "sleep_deprivation_dataset.csv".
+# We will begin by installing and loading the required packages. The libraries
+# below provide the core functionality for the Shiny app: (shiny) is the web
+# app framework, (DT) allows for the building of interactive tables, (ggplot2) 
+# facilitates plotting, (dplyr) and (tidyr) are critical for data wrangling,
+# (bslib) permits boostrap theming for a polished user interface/UI, and
+# (plotly) allows for the creation of interactive versions of ggplots. 
+
 #install.packages("shiny")
 #install.packages("DT")
 #install.packages("ggplot2")
@@ -13,12 +30,27 @@ library(bslib)
 library(tidyr)
 library(plotly)
 
+# We want to read in the data-set and set up the key variables. We will read the
+# CSV containing the 2024 sleep deprivation study data, into object "sleep_df". 
+# "stringsAsFactors = FALSE prevents automatic conversion of strings to 
+# factors, giving us more control over which variables become factors. We
+# also want to convert gender to a factor so that we can use it as a grouping
+# variable in plots and display gender-level summaries and legends with
+# nice labels. 
+
 sleep_df <- read.csv(
   "sleep_deprivation_dataset.csv",
   stringsAsFactors = FALSE)
 sleep_df$Gender <- factor(sleep_df$Gender)
 
-# Generating a custom theme 
+# To generate a theme, we can define a custom Bootstrap 5 theme using bslib, 
+# wherein we can control the overall aesthetic: fonts, colors, and background.
+# We will opt for Bootstrap 5 with a Base Minty theme, a modern sans-serif font,
+# a light background for the app body, and a dark text color for emphatic 
+# contrast. The "primary" function allows us to set the main accent color, used
+# in the tabs, buttons, etc. We will load these details into the object 
+# "my_theme" for use when building the UI. 
+
 my_theme <- bs_theme(
   version = 5,
   bootswatch = "minty",
@@ -28,10 +60,15 @@ my_theme <- bs_theme(
   primary = "#2C7FB8"
 )
 
-# Create UI:
+# We now want to build the User Interface (UI) skeleton. fluidPage() lays out
+# the overall structure of the app. We attach the custom bootstrap theme and
+# define some extra CSS for the sidebar and helper text. 
 
 ui <- fluidPage(
-  theme = my_theme,
+  theme = my_theme, #Applies the custom bslib theme to the entire app.
+  # Custom CSS is incorporated into the <head> of the HTML page. This styles
+  # the left sidebar as a white card with rounded corners and styles section 
+  # titles plus the help text. 
   tags$head(
     tags$style(HTML("
       .sidebar {
@@ -51,8 +88,15 @@ ui <- fluidPage(
         margin-top: -6px;
         margin-bottom: 12px;}
     "))
-  ),
-  titlePanel("Sleep Deprivation & Cognitive Performance Explorer"),
+  ), # Now we include the title bar at the top of the app window.
+  titlePanel("Sleep Deprivation & Cognitive Performance Explorer"), 
+  # Now we split the page into a left sidebar (filters and controls) and a main
+  # panel (tabs with data/plots/models). In the sidebar panel, we will have
+  # participant filters and analysis controls, and everything here changes
+  # what appears in the main tabs. The class = "sidebar" function uses our 
+  # custom .sidebar CSS (which gives a card-like look). We will also 
+  # incorporate a slider for nightly sleep hours. This controls which
+  # participants are included based on Sleep_Hours. 
   sidebarLayout(
     sidebarPanel(
       class = "sidebar",
@@ -65,7 +109,12 @@ ui <- fluidPage(
         value = c(min(sleep_df$Sleep_Hours, na.rm = TRUE),
                   max(sleep_df$Sleep_Hours, na.rm = TRUE)),
         step  = 0.1
-      ),
+      ), 
+    # We can include a small explanatory blurb under the slider to help
+    # non-technical users. We will also include a slider for Age, which 
+    # works exactly like the sleep slider. Checkboxes will be included, for 
+    # the Gender filter, wherein users can look at males only, females only, 
+    # or both. 
       div(class = "help-note", "Drag to focus on short vs long sleepers."),
       sliderInput(
         "ageRange",
@@ -82,9 +131,15 @@ ui <- fluidPage(
         choices  = levels(sleep_df$Gender),
         selected = levels(sleep_df$Gender),
         inline   = TRUE
-      ),
+      ), # To facilitate rapid re-assessment of variables, the inclusion of a 
+    # Reset button is critical for returning all filters (sleep, age, gender)
+    # back to their full-range defaults.
       actionButton("resetBtn", "Reset filters", icon = icon("rotate-left")),
-      tags$hr(), div(class = "section-title", "Plot Controls"),
+      tags$hr(),
+    # We can now focus on which variables will appear in our histogram within
+    # the Sleep -> Cognition tab, using the standard selectInput function, 
+    # with the concatenated choices of known variables as per the data-set. 
+    div(class = "section-title", "Plot Controls"),
       selectInput(
         "histVar",
         "Histogram variable:",
@@ -102,7 +157,10 @@ ui <- fluidPage(
           "BMI"
         ),
         selected = "Sleep_Hours"
-      ),
+      ), 
+    # Our X-axis variable (sleep metric) will be assigned for the Sleep ->
+    # Cognition scatter plot. The Y-axis variable (cognitive outcome) will
+    # also be inputed for the Sleep -> Cognition scatter. 
     selectInput(
         "xVar",
         "X-axis (sleep metric):",
@@ -120,7 +178,10 @@ ui <- fluidPage(
       ),
       selected = "PVT_Reaction_Time"
     ),
-    tags$hr(), div(class = "section-title", "Summary Controls"),
+    tags$hr(), 
+    # We want the users to be able to decide which statistics appear in the 
+    # Summary tab (e.g., min, median, mean, SD, etc.)
+    div(class = "section-title", "Summary Controls"),
     checkboxGroupInput(
       "summaryStats",
       "Summary statistics to display:",
@@ -128,6 +189,10 @@ ui <- fluidPage(
       selected = c("Min","Q1","Median","Mean","SD","Variance","Q3","Max")
     ),
     tags$hr(),
+    # We now want to consider the outcome (Y) for the regression model in the 
+    # Model tab. We will also involve covariates that the user can include
+    # in the regression model. Sleep_Hours is always in the model, but the 
+    # co-variates will be added on top.
     div(class = "section-title", "Model Controls"),
     selectInput(
       "outcomeVar",
@@ -146,12 +211,24 @@ ui <- fluidPage(
       choices  = c("Age","Gender","BMI","Caffeine_Intake",
                    "Physical_Activity_Level","Stress_Level"),
       selected = c("Age","Gender")
-    ),
+    ), # The downloadButton command will allow for a Download button to appear,
+    # which facilitates the export of a currently filtered dataset, as CSV. 
     downloadButton("downloadData", "Download filtered data")
     ),
-    mainPanel(
-      navset_card_tab(
-  nav_panel("Data", icon = icon("table"),
+    # Ultimately, with respect to the sidear: together, the inputs above allow
+    # the user to define a subpopulation (by sleep duration, age and gender) and
+    # then choose which variables to visualize or model. Every tab in the main
+    # panel reacts to these choices, so the sidebar acts as the central "control
+    # panel" for the whole app. We can now move on to the Main panel tabset
+    # with Data, Summary, Sleep -> Cognition, Lifestyle and Model tabs. The
+    # function navset_card_tab() gives each tab a card-like appearance. We
+    # want dynamic text summarizing the filtered sample size (n =...). which
+    # can be achieved using card_header(textOutput("nText")). We will also 
+    # include a short narrative description so users understand what each row 
+    # is, using the function p(class = "help-note",). Finally, an interactive
+    # data table (DT) will be included, that displays the filtered data-set, 
+    # wherein users can sort, search and paginate with ease.  
+    mainPanel(navset_card_tab(nav_panel("Data", icon = icon("table"),
       card(card_header(textOutput("nText")),
       p(class = "help-note",
 "Each row is one participant from a 2024 study of 60 adults in the Middle East. ",
@@ -160,6 +237,13 @@ ui <- fluidPage(
   "like caffeine, physical activity, and stress."),
   DTOutput("dataTable"))
         ),
+# For our Summary tab, we will include two cards side-by-side, using width = 1/2
+# and the left card will feature the numeric summary statistics (Min, Q1, 
+# Median, etc.) whereas the right card will contain the z-score boxplots for
+# key distributions. A little info-icon will also be featured, with a hover 
+# tooltip, explaining z-scores to any users that are unfamiliar. To further
+# bolster clarity/transparency, an extra explanatory text will be situated
+# under the card header.
   nav_panel("Summary", icon = icon("chart-bar"),
           layout_column_wrap(
             width = 1/2,
@@ -178,6 +262,16 @@ ui <- fluidPage(
         "These boxplots show standardized values (z-scores), so Sleep Hours, Sleep Quality Score, and PVT Reaction Time can be compared on the same scale despite having different units."
               ),
       plotOutput("summaryBoxPlot", height = 320)))),
+# The Summary tab provides a quick descriptive overview of the filtered data. 
+# The table quantifies the distribution of each numeric variable, while the 
+# standardized boxplots visually compare the central tendency and spread of 
+# three core measures on a common scale. This is especially helpful for 
+# spotting outliers and relative variability across metrics. Moving on to the 
+# Sleep -> Cognition tab, we will include a guiding question so users know
+# what they are exploring. The left card will contain a histogram of whichever
+# variable the user selected in "histVar" and the right card contains the 
+# sleep metric (x-axis) vs the cognitive outcome (y-axis), colored by Gender,
+# and turned into an interactive Plotly scatter. 
   nav_panel("Sleep → Cognition", icon = icon("brain"),
           p(class = "help-note",
             "How does sleep duration, quality, or daytime sleepiness relate to each cognitive outcome?"
@@ -190,6 +284,17 @@ ui <- fluidPage(
             )
           )
         ),
+# This tab is the core exploration space for "does sleep matter for cognition?"
+# The histogram helps users understand how the chosen variable is distributed
+# in the filtered sample (e.g., whether sleep hours are skewed). The scatterplot
+# with its regression line and gender coloring visually encodes potential
+# linear trends and sex differences. Moving on to the Lifestyle and Model tabs,
+# a card will be featured for Caffeine vs Sleep, with a regression line and
+# textual summary. There will also be a card for Stress vs Sleep, with a
+# regression line and textual summary. Within the Model tab, the left card
+# will present a regression model summary in plain language and printed lm()
+# output, whereas the right card will comtain a diagnostics plot (Residuals
+# vs Fitted) for model checking. 
    nav_panel("Lifestyle", icon = icon("mug-hot"),
         p(class = "help-note",
         "Do caffeine and stress appear to be associated with sleep hours?"
@@ -230,6 +335,14 @@ ui <- fluidPage(
     )
   )
 )
+# The Lifestyle tab connects behavioral exposures (caffeine, stress) with sleep
+# duration and provides a concise, automatically-generated interpretation of 
+# the regression slope and correlation. The Model tab elevates the app from
+# visualization to formal modeling, allowing users to specify multivariable
+# linear regression models and insepct both textual summaries and diagnostic
+# plots. 
+
+
 # Create Server:
 server <- function(input, output, session) {
   observeEvent(input$resetBtn, {
